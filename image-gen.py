@@ -21,9 +21,9 @@ def image_generator(prompt,model='gemini-2.0-flash-preview-image-generation',out
         image = Image.open(BytesIO((part.inline_data.data)))
         image.save(output_file)
 
-image_generator(prompt='A vibrant and surreal scene depicting the Thrissur Pooram festival in Kerala, '
-                       'India, but instead of elephants, majestic dinosaurs of various sizes and species are adorned with '
+image_generator(prompt="""A vibrant and surreal scene depicting the Thrissur Pooram festival in Kerala, '
+                       'India, but instead of elephants, majestic dinosaurs of various sizes instead of elephants adorned with '
                        'traditional Nettipattam (ornamental head coverings) and carrying people on howdahs. The dinosaurs are amidst a large, '
                        'enthusiastic crowd of people in traditional Kerala attire. The iconic Vadakkunnathan Temple stands tall and '
                        'illuminated in the background. Bright fireworks explode in the twilight sky, adding to the festive atmosphere. '
-                       'Capture the energy, color, and unique juxtaposition of ancient tradition and prehistoric creatures.')
+                       'Capture the energy, color, and unique juxtaposition of ancient tradition and prehistoric creatures""")
