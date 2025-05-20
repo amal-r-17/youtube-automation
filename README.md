@@ -10,6 +10,6 @@ Go to this link [https://aistudio.google.com/u/0/apikey](https://aistudio.google
 
 Create a config file with the code with the following structure
 
-image_gen = {
-"GOOGLE_API_KEY":(YOUR API KEY)
-}
+    image_gen = {
+                 "GOOGLE_API_KEY":(YOUR API KEY)
+                }
