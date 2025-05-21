@@ -1,0 +1,66 @@
+import os
+import json
+from typing import Dict, Any, Optional
+
+from script.scriptGenerator import YouTubeContentGenerator
+
+class ContentCreator:
+    """
+    Main class that handles YouTube content creation workflow.
+    Generates scripts and image prompts and returns them in a structured format.
+    """
+    
+    def __init__(self, llm_provider: str = "openai", api_key: Optional[str] = None, model_name: Optional[str] = None):
+        """
+        Initialize the ContentCreator with specified LLM provider.
+        
+        Args:
+            llm_provider (str): The LLM provider to use ("openai", "grok", "gemini", "claude", "ollama")
+            api_key (Optional[str]): API key for the chosen provider or base URL for Ollama
+            model_name (Optional[str]): Specific model name to use with the provider
+        """
+        self.generator = YouTubeContentGenerator(
+            llm_provider=llm_provider, 
+            api_key=api_key,
+            model_name=model_name
+        )
+    
+    def create_content(self, topic: str) -> Dict[str, Any]:
+        """
+        Generate YouTube content based on the provided topic.
+        
+        Args:
+            topic (str): The topic to create content about
+            
+        Returns:
+            Dict[str, Any]: A dictionary containing the script and image prompts
+        """
+        # Step 1: Generate the YouTube script
+        script = self.generator.generate_youtube_script(topic)
+        
+        # Step 2: Generate image prompts from the script
+        image_prompts = self.generator.generate_image_prompts(script)
+        
+        # Step 3: Format the result
+        result = {
+            "script": script,
+            "image-prompts": image_prompts
+        }
+        
+        return result
+    
+    def save_to_json(self, result: Dict[str, Any], filename: str = "youtube_content.json") -> str:
+        """
+        Save the generated content to a JSON file.
+        
+        Args:
+            result (Dict[str, Any]): The result from create_content
+            filename (str): Name of the JSON file to save to
+            
+        Returns:
+            str: Path to the saved file
+        """
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(result, f, indent=4, ensure_ascii=False)
+        
+        return os.path.abspath(filename)

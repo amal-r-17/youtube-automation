@@ -1,0 +1,15 @@
+langchain==0.1.13
+langchain-community>=0.0.29
+langchain-experimental>=0.0.38
+openai>=1.3.0
+# google-generativeai>=0.3.0
+anthropic>=0.8.0
+groq>=0.4.0
+pydantic>=2.0.0
+ollama>=0.1.5
+
+langchain-openai
+langchain-groq
+langchain-google-genai
+langchain-anthropic
+python-dotenv
