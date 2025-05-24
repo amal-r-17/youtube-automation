@@ -1,3 +1,20 @@
 .env
 __pycache__
 *.pyc
+# Ignore virtual environments
+.venv/
+
+# Ignore system files
+__pycache__/
+*.pyc
+
+# Ignore data outputs
+data/audio/
+*.json
+
+# Ignore VS Code settings (optional)
+.vscode/
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
