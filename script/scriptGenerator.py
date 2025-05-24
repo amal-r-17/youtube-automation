@@ -93,6 +93,7 @@ class YouTubeContentGenerator:
         - Use language that creates curiosity and keeps viewers watching
         - Don't include any technical directions like [PAUSE] or [CUT TO]
         - Make sure the script flows naturally when read aloud
+        - Make sure that the script doesn't include any cues for the actual video itself, like how the background sound should be or what image to be shown then or anything, it should only have the actual script
         - Include an engaging call-to-action at the end
         
         YOUTUBE SCRIPT:

@@ -91,7 +91,7 @@ def text_to_speech_file(text: str, save_dir: str, ELEVENLABS_API_KEY, save_file_
             similarity_boost=1.0,
             style=0.0,
             use_speaker_boost=True,
-            speed=1.0,
+            speed=1.2,
         ),
     )
 

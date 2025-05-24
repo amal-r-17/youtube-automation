@@ -24,19 +24,23 @@ def image_generator(prompt_str, api_key, model='gemini-2.0-flash-preview-image-g
             image.save(output_filepath)
 
 
-def generate_images(prompts, output_path, api_key):
+def generate_images(prompts, output_path, api_key, num_images=3):
   output = {"script": prompts['script'], "image-paths": {}}
+  image_count = 1
   for i, prompt in prompts['image-prompts'].items():
       print("PROCESSING IMAGE: ", prompt)
-      try:
-          output_file = f"{output_path}/{i}.png"
-          image_generator(prompt_str=prompt, output_filepath=output_file, api_key=api_key)
-      except Exception as e:
-          print("ERROR OCCURED: ", e)
-          output_file = "No-image"
-      print("IMAGE SAVED to: ", output_file)
-      output["image-paths"][f"{i}"] = output_file
+      for _ in range(num_images):
+        try:
+            output_file = f"{output_path}/{image_count}.png"
+            image_generator(prompt_str=prompt, output_filepath=output_file, api_key=api_key)
+        except Exception as e:
+            print("ERROR OCCURED: ", e)
+            output_file = "No-image"
+        print("IMAGE SAVED to: ", output_file)
+        output["image-paths"][f"{image_count}"] = output_file
+        image_count+=1
   return output
+
 
 if __name__ == "__main__":
   input_file = 'data/input/what_if_NASA_had_budget_of_US_miltary.json'

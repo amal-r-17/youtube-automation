@@ -1,4 +1,4 @@
-import os
+import os, re
 import json
 from typing import Dict, Any, Optional
 from dotenv import load_dotenv
@@ -9,6 +9,8 @@ from image_gen.image_gen import generate_images # Gen images
 from audio_gen.audio_generator import text_to_speech_file
 from video_gen.video_generator import create_video_from_images
 
+def remove_enclosed_segments(text):
+    return re.sub(r"\*\*\([^)]*\)\*\*", "", text)
 
 def main():
     """
@@ -35,12 +37,14 @@ def main():
 
     # Image directory
     IMAGE_DIR = os.getenv("IMAGE_DIR")
+    os.makedirs(IMAGE_DIR, exist_ok=True)
 
     # Audio directory
     AUDIO_DIR = os.getenv("AUDIO_DIR")
+    os.makedirs(AUDIO_DIR, exist_ok=True)
 
     # Video size
-    TARGET_SIZE = (1920, 1080)
+    TARGET_SIZE = (1280, 720) #(1920, 1080)
 
 
     # Instantiate the content creator
@@ -81,8 +85,11 @@ def main():
     print("[INFO] Image Generation Completed")
 
     print("[INFO] TTS Started")
+
+    # Processing the script to remove the text and video cues
+    processed_script = remove_enclosed_segments(result["script"])
     # Audio gen
-    save_file_path = text_to_speech_file(text=result["script"], save_dir=AUDIO_DIR, ELEVENLABS_API_KEY=ELEVENLABS_API_KEY)
+    save_file_path = text_to_speech_file(text=processed_script, save_dir=AUDIO_DIR, ELEVENLABS_API_KEY=ELEVENLABS_API_KEY)
     print("[INFO] TTS Completed")
 
     print("[INFO] FINAL VIDEO STARTED")

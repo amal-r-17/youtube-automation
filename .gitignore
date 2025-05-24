@@ -20,6 +20,6 @@ data/audio/
 Thumbs.db
 
 *.mp4
-/data
+/data*
 *.mp3
 
