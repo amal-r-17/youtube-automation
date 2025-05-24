@@ -18,3 +18,8 @@ data/audio/
 # Ignore OS-specific files
 .DS_Store
 Thumbs.db
+
+*.mp4
+/data
+*.mp3
+

@@ -5,6 +5,10 @@ from dotenv import load_dotenv
 
 load_dotenv()  # take environment variables
 from script.contentbuilder import ContentCreator
+from image_gen.image_gen import generate_images # Gen images
+from audio_gen.audio_generator import text_to_speech_file
+from video_gen.video_generator import create_video_from_images
+
 
 def main():
     """
@@ -23,7 +27,22 @@ def main():
     
     # Get model name if specified
     model_name = os.environ.get(f"{llm_provider.upper()}_MODEL")
-    
+
+    # ELEVEN LABS API KEY
+    ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+    # IMAGE GEN API KEY
+    GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+
+    # Image directory
+    IMAGE_DIR = os.getenv("IMAGE_DIR")
+
+    # Audio directory
+    AUDIO_DIR = os.getenv("AUDIO_DIR")
+
+    # Video size
+    TARGET_SIZE = (1920, 1080)
+
+
     # Instantiate the content creator
     creator = ContentCreator(
         llm_provider=llm_provider,
@@ -55,7 +74,22 @@ def main():
     filename = f"youtube_content_{topic.replace(' ', '_')[:20]}.json"
     file_path = creator.save_to_json(result, filename)
     print(f"\nContent saved to: {file_path}")
-    
+
+    print("[INFO] Image Generation Started")
+    # Gen images
+    generate_images(result, IMAGE_DIR, api_key=GOOGLE_API_KEY)
+    print("[INFO] Image Generation Completed")
+
+    print("[INFO] TTS Started")
+    # Audio gen
+    save_file_path = text_to_speech_file(text=result["script"], save_dir=AUDIO_DIR, ELEVENLABS_API_KEY=ELEVENLABS_API_KEY)
+    print("[INFO] TTS Completed")
+
+    print("[INFO] FINAL VIDEO STARTED")
+    # Generate video
+    create_video_from_images(IMAGE_DIR, save_file_path, "sample.mp4", TARGET_SIZE)
+    print("[INFO] FINAL VIDEO COMPLETED")
+
     return result
 
 
