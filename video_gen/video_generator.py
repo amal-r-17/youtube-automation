@@ -77,9 +77,12 @@ def create_video_from_images(images_folder, audio_file, output_file, target_size
     """
     Create video from images with transitions, zoom effects, and audio
     """
+    ### TODO: NEED TO FIND A BETTER WAY
     # Get all PNG files
-    image_files = [f for f in os.listdir(images_folder) if f.lower().endswith('.png')]
-    image_files.sort()  # Sort alphabetically
+    imges_len = len(os.listdir(images_folder))
+    image_files = [f"{i+1}.png" for i in range(imges_len)]
+    # image_files = [f for f in os.listdir(images_folder) if f.lower().endswith('.png')]
+    # image_files.sort()  # Sort alphabetically
     
     if not image_files:
         raise ValueError("No PNG files found in the specified folder")
@@ -103,7 +106,6 @@ def create_video_from_images(images_folder, audio_file, output_file, target_size
     # Create video clips
     clips = []
     zoom_effects = ['in', 'out', 'none']  # Different effects to cycle through
-    
     for i, image_file in enumerate(image_files):
         image_path = os.path.join(images_folder, image_file)
         print(f"Processing {image_file}...")
@@ -175,11 +177,11 @@ if __name__ == "__main__":
     OUTPUT_FILE = "output_video.mp4"
     
     # YouTube recommended resolution (you can change this)
-    TARGET_SIZE = (1920, 1080)  # Full HD
-    # TARGET_SIZE = (1280, 720)   # HD
+    # TARGET_SIZE = (1920, 1080)  # Full HD
+    TARGET_SIZE = (1280, 720)   # HD
     # TARGET_SIZE = (3840, 2160)  # 4K
     
     try:
-        create_video_from_images(IMAGES_FOLDER, AUDIO_FILE, OUTPUT_FILE, TARGET_SIZE)
+        create_video_from_images("/home/amal/amal/side/youtube-automation/data/images", "/home/amal/amal/side/youtube-automation/data/audio/audio_output.mp3", "final.mp4", TARGET_SIZE)
     except Exception as e:
         print(f"Error: {e}")
