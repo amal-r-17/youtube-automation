@@ -56,7 +56,7 @@ def main():
     
     # Get topic from command line arguments or use a default
     import sys
-    topic = sys.argv[1] if len(sys.argv) > 1 else "what if NASA had the budjet of US military?"
+    topic = sys.argv[1] if len(sys.argv) > 1 else "what if NASA had the budget of US military?"
     
     print(f"Generating YouTube content for topic: '{topic}'")
     print(f"Using LLM provider: {llm_provider}")
