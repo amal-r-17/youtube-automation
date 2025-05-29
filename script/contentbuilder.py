@@ -40,13 +40,24 @@ class ContentCreator:
         
         # Step 2: Generate image prompts from the script
         image_prompts = self.generator.generate_image_prompts(script)
-        
+
+        # Step 3: Generate a Thumbnail from the script
+        thumbnail_prompt = self.generator.generate_thumbnail_prompts(script)
+
+        # Step 4: Generate a youtube video description
+        video_description = self.generator.generate_youtube_description(script=script, topic=topic)
+
         # Step 3: Format the result
         result = {
+            "topic": topic,
             "script": script,
-            "image-prompts": image_prompts
+            "image-prompts": image_prompts,
+            "thumbnail-prompts": thumbnail_prompt,
+            "meta_data": video_description
         }
-        
+        print("Final result: ", result)
+        # self.save_to_json(result=result, filename="sample.json")
+        # exit()
         return result
     
     def save_to_json(self, result: Dict[str, Any], filename: str = "youtube_content.json") -> str:

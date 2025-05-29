@@ -1,4 +1,6 @@
-import os
+import os, json
+import re
+import ast
 from typing import Dict, List, Optional, Tuple
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
@@ -157,9 +159,28 @@ class YouTubeContentGenerator:
         
         section_chain = LLMChain(llm=self.llm, prompt=section_prompt)
         result = section_chain.run(script=script)
+        # print("IMAGE PRMPTS: ", result)
+        final_prompts = self.parse_image_prompts(result)
+        # print("Final: ", final_prompts)
+        # exit()
+        return final_prompts
         
-        # Clean up the result to make sure it's parsable
-        result = result.strip()
+    
+
+    def parse_image_prompts(self, result_text):
+        """
+        Parse the LLM output and return a proper dictionary with keys 1-6 and image prompts as values.
+        
+        Args:
+            result_text (str): The raw output from the LLM
+            
+        Returns:
+            Dict[int, str]: A dictionary mapping section numbers to detailed image prompts
+        """
+        # Clean up the result
+        result = result_text.strip()
+        
+        # Remove code block markers if present
         if result.startswith("```python"):
             result = result.split("```python")[1]
         if result.startswith("```"):
@@ -167,14 +188,321 @@ class YouTubeContentGenerator:
         if result.endswith("```"):
             result = result.rsplit("```", 1)[0]
         
-        # WARNING: Using eval() is generally not recommended for security reasons
-        # In a production environment, you should use a proper JSON parser with error handling
+        result = result.strip()
+        
+        # Try using ast.literal_eval (safe evaluation of Python literals)
         try:
-            image_prompts = eval(result)
-            return image_prompts
+            parsed = ast.literal_eval(result)
+            # Ensure keys are integers
+            return {int(k): str(v) for k, v in parsed.items()}
         except:
-            # Fallback method if parsing fails
-            return {
-                i+1: f"Failed to parse section {i+1}. Please review the script and try again."
-                for i in range(6)
-            }
+            pass
+        
+        # Manual parsing as fallback
+        try:
+            prompts = {}
+            
+            # Find dictionary content between braces
+            start = result.find('{')
+            end = result.rfind('}')
+            if start != -1 and end != -1:
+                dict_content = result[start+1:end]
+                
+                # Split by lines and parse each entry
+                lines = dict_content.split('\n')
+                current_key = None
+                current_value = []
+                
+                for line in lines:
+                    line = line.strip()
+                    if not line or line == ',':
+                        continue
+                    
+                    # Check if line starts with a number (new key)
+                    key_match = re.match(r'^(\d+):\s*"(.*)$', line)
+                    if key_match:
+                        # Save previous entry
+                        if current_key is not None and current_value:
+                            prompts[current_key] = ' '.join(current_value).rstrip('",')
+                        
+                        # Start new entry
+                        current_key = int(key_match.group(1))
+                        current_value = [key_match.group(2)]
+                    else:
+                        # Continue current value
+                        if current_key is not None:
+                            current_value.append(line.rstrip('",'))
+                
+                # Save last entry
+                if current_key is not None and current_value:
+                    prompts[current_key] = ' '.join(current_value).rstrip('",')
+            
+            if len(prompts) >= 6:
+                return prompts
+                
+        except Exception as e:
+            print(f"Manual parsing failed: {e}")
+        
+        # Final fallback - return error dictionary
+        return {
+            i+1: f"Failed to parse section {i+1}. Please review the script and try again."
+            for i in range(6)
+        }
+        
+
+    def generate_thumbnail_prompts(self, script: str) -> Dict[str, Dict[str, str]]:
+        """
+        Generate 3 different thumbnail options for a YouTube script.
+        
+        Args:
+            script (str): The YouTube script to process
+            
+        Returns:
+            Dict[str, Dict[str, str]]: A dictionary with 3 options, each containing 'text' and 'image_prompt'
+        """
+        
+        section_prompt_template = """
+        
+        I'm going to give you a YouTube script. Analyze the script to understand the main topic, key points, and overall theme, then create 3 DIFFERENT highly detailed image prompts for generating clickbait thumbnails that will maximize clicks.
+
+        YOUTUBE SCRIPT:
+        {script}
+
+        Create 3 DIFFERENT extremly detailed thumbnail concepts, each with a unique approach:
+
+        **OPTION 1 - DRAMATIC/SHOCK VALUE:**
+        Focus on dramatic facial expressions, bold contrasts, and shock value elements.
+
+        **OPTION 2 - CURIOSITY/MYSTERY:**
+        Focus on creating curiosity gaps, mystery elements, and "what will happen" scenarios.
+
+        **OPTION 3 - BENEFIT/RESULT:**
+        Focus on the end result, transformation, or key benefit from the video content.
+
+        For each option, include:
+
+        **VISUAL ELEMENTS:**
+        - Main subject/focal point that represents the core topic
+        - Eye-catching visual metaphors or symbols related to the content
+        - Dramatic facial expressions (if people are involved) showing appropriate emotion
+        - Bold, contrasting elements that create visual tension
+
+        **CLICKBAIT FACTORS:**
+        - Vivid, saturated colors (especially reds, yellows, blues for high contrast)
+        - Dynamic composition with elements that draw the eye
+        - Visual elements that match the option's theme
+        - Dramatic lighting and shadows for maximum impact
+
+        **TECHNICAL SPECIFICATIONS:**
+        - 16:9 aspect ratio optimized for YouTube thumbnails
+        - High contrast and bold elements that remain visible at small sizes
+        - Clear focal hierarchy with the most important element dominating
+        - Background that doesn't compete with the main subject
+
+        **TEXT OVERLAY INTEGRATION:**
+        - Include bold, eye-catching text overlay directly burned into the image
+        - Text should be 2-4 words maximum, extracted from the most compelling part of the script
+        - Use large, thick fonts (like Impact or Bebas Neue style) in bright colors (white, yellow, or red)
+        - Position text strategically to not obscure the main visual elements
+        - Add drop shadows, outlines, or background boxes to ensure text readability
+
+        Format your response EXACTLY as:
+
+        **OPTION 1:**
+        **TEXT:** [2-4 word phrase]
+        **IMAGE PROMPT:** [Complete detailed image generation prompt]
+
+        **OPTION 2:**
+        **TEXT:** [2-4 word phrase]
+        **IMAGE PROMPT:** [Complete detailed image generation prompt]
+
+        **OPTION 3:**
+        **TEXT:** [2-4 word phrase]
+        **IMAGE PROMPT:** [Complete detailed image generation prompt]
+
+        """
+        
+        section_prompt = PromptTemplate(
+            input_variables=["script"],
+            template=section_prompt_template
+        )
+        
+        section_chain = LLMChain(llm=self.llm, prompt=section_prompt)
+        result = section_chain.run(script=script)
+
+        # print("output: ", result)
+        parsed_options = self.parse_multiple_thumbnail_outputs(result)
+        # print("final: ", parsed_options)
+        
+        return parsed_options
+
+
+    def parse_multiple_thumbnail_outputs(self, output_text):
+        """
+        Parse multiple thumbnail outputs and return dict with 3 options.
+        """
+        result = {
+            "option_1": {"text": "", "image_prompt": ""},
+            "option_2": {"text": "", "image_prompt": ""},
+            "option_3": {"text": "", "image_prompt": ""}
+        }
+        
+        # Split by OPTION sections
+        sections = output_text.split("**OPTION")
+        
+        for section in sections[1:]:  # Skip first empty section
+            option_num = None
+            
+            # Get option number from the beginning of section
+            if section.strip().startswith("1") or " 1:" in section[:10]:
+                option_num = "option_1"
+            elif section.strip().startswith("2") or " 2:" in section[:10]:
+                option_num = "option_2"
+            elif section.strip().startswith("3") or " 3:" in section[:10]:
+                option_num = "option_3"
+            
+            if option_num:
+                # Find TEXT
+                if "**TEXT:**" in section:
+                    text_start = section.find("**TEXT:**") + len("**TEXT:**")
+                    text_end = section.find("\n", text_start)
+                    if text_end == -1:
+                        text_end = section.find("**IMAGE PROMPT:**", text_start)
+                    if text_end == -1:
+                        text_end = len(section)
+                    
+                    text_content = section[text_start:text_end].strip()
+                    result[option_num]["text"] = text_content.replace('*', '').strip()
+                
+                # Find IMAGE PROMPT
+                if "**IMAGE PROMPT:**" in section:
+                    prompt_start = section.find("**IMAGE PROMPT:**") + len("**IMAGE PROMPT:**")
+                    # Get everything after IMAGE PROMPT until end of section
+                    prompt_content = section[prompt_start:].strip()
+                    result[option_num]["image_prompt"] = prompt_content.replace('*', '').strip()
+        
+        return result
+    
+    def generate_youtube_description(self, script: str, topic: str) -> Dict[str, str]:
+        """
+        Generate an SEO-optimized YouTube video description based on script and topic.
+        
+        Args:
+            script (str): The YouTube script content
+            topic (str): The main topic/theme of the video
+            
+        Returns:
+            Dict[str, str]: A dictionary containing 'description', 'tags', and 'title_suggestions'
+        """
+        
+        description_prompt_template = """
+        
+        I'm going to give you a YouTube script and topic. Create a simple, engaging YouTube video description similar to popular science channels.
+
+        YOUTUBE SCRIPT:
+        {script}
+
+        VIDEO TOPIC:
+        {topic}
+
+        Create a concise YouTube description with this structure:
+
+        **MAIN_DESCRIPTION:**
+        Write 1 paragraph (80-120 words) that:
+        - Starts with an engaging question related to the topic
+        - Briefly explains what the video covers
+        - Mentions 2-3 key points from the script
+        - Includes natural keywords
+        - Ends with a simple call-to-action like "Don't forget to like, share, and subscribe for more [topic type] videos!"
+
+        **HASHTAGS:**
+        Generate 8-12 relevant hashtags including the main topic and related keywords
+
+        **TITLE_SUGGESTIONS:**
+        Provide 3 clickbait-style title options (under 60 characters each)
+
+        Format your response EXACTLY as:
+
+        **MAIN_DESCRIPTION:**
+        [Single engaging paragraph with question opener, key points, and CTA]
+
+        **HASHTAGS:**
+        [8-12 hashtags separated by spaces]
+
+        **TITLE_SUGGESTIONS:**
+        1. [Title option 1]
+        2. [Title option 2] 
+        3. [Title option 3]
+
+        """
+        
+        description_prompt = PromptTemplate(
+            input_variables=["script", "topic"],
+            template=description_prompt_template
+        )
+        
+        description_chain = LLMChain(llm=self.llm, prompt=description_prompt)
+        result = description_chain.run(script=script, topic=topic)
+
+        # print("Description output: ", result)
+        parsed_description = self.parse_youtube_description_output(result)
+
+        return parsed_description
+
+
+    def parse_youtube_description_output(self, output_text):
+        """
+        Parse simple YouTube description output and return structured dict.
+        """
+        result = {
+            "main_description": "",
+            "hashtags": "",
+            "title_suggestions": [],
+            "full_description": ""
+        }
+        
+        sections = {
+            "**MAIN_DESCRIPTION:**": "main_description",
+            "**HASHTAGS:**": "hashtags",
+            "**TITLE_SUGGESTIONS:**": "title_suggestions"
+        }
+        
+        # Parse each section
+        for section_header, key in sections.items():
+            if section_header in output_text:
+                start_idx = output_text.find(section_header) + len(section_header)
+                
+                # Find the end of this section (next section header or end of text)
+                end_idx = len(output_text)
+                for other_header in sections.keys():
+                    if other_header != section_header and other_header in output_text:
+                        other_start = output_text.find(other_header)
+                        if other_start > start_idx and other_start < end_idx:
+                            end_idx = other_start
+                
+                section_content = output_text[start_idx:end_idx].strip()
+                
+                # Special handling for title suggestions
+                if key == "title_suggestions":
+                    titles = []
+                    for line in section_content.split('\n'):
+                        line = line.strip()
+                        if line and (line.startswith('1.') or line.startswith('2.') or line.startswith('3.')):
+                            title = line.split('.', 1)[1].strip() if '.' in line else line
+                            titles.append(title)
+                    result[key] = titles
+                else:
+                    result[key] = section_content.replace('*', '').strip()
+        
+        # Create full description (main description + hashtags)
+        full_desc_parts = []
+        
+        if result["main_description"]:
+            full_desc_parts.append(result["main_description"])
+        
+        if result["hashtags"]:
+            full_desc_parts.append(" " + result["hashtags"])
+        
+        result["full_description"] = "".join(full_desc_parts)
+        
+        return result
