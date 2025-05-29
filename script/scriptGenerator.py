@@ -83,23 +83,27 @@ class YouTubeContentGenerator:
         Returns:
             str: The generated YouTube script
         """
-        script_prompt_template = """
-        Create an engaging, curiosity-peaking YouTube script on the following topic:
-        
-        TOPIC: {topic}
-        
-        Requirements:
-        - The script should be for a video that's at least 1 minute long
-        - Make it engaging, conversational, and with a strong hook at the beginning
-        - Include an introduction, main content with 3-4 key points, and a conclusion
-        - Use language that creates curiosity and keeps viewers watching
-        - Don't include any technical directions like [PAUSE] or [CUT TO]
-        - Make sure the script flows naturally when read aloud
-        - Make sure that the script doesn't include any cues for the actual video itself, like how the background sound should be or what image to be shown then or anything, it should only have the actual script
-        - Include an engaging call-to-action at the end
-        
-        YOUTUBE SCRIPT:
-        """
+        script_prompt_template = """Create an engaging, curiosity-peaking YouTube script on the following topic:
+
+                TOPIC: {topic}
+                
+                Requirements:
+                - The script should be for a video that's at least 1 minute long (aim for approximately [SUGGESTED TARGET LENGTH, e.g., 2-4 minutes] to allow for natural pacing and development of wit).
+                - The **narrator's persona must be distinctively witty and sarcastic**. Think [MENTION A TYPE OF WIT/SARCASM OR A COMEDIC PERSONA, e.g., "dry and observational like a seasoned cynic," or "energetically sarcastic with a playful edge," or "darkly humorous and self-deprecating"]. Their commentary should be clever, perhaps a bit irreverent, but ultimately keep the audience hooked.
+                - Include a **strong, witty, and attention-grabbing hook** at the beginning. This should immediately establish the sarcastic tone and make viewers desperate to know what's next.
+                - The script must have a clear structure:
+                    - **Witty Introduction:** Sets the stage, introduces the topic with the narrator's unique, sarcastic perspective, and perhaps pokes fun at common misconceptions or the topic itself.
+                    - **Main Content (3-4 Key Points):** Each point should be presented with the narrator's signature wit and sarcasm. This is where you'll build arguments, share facts, or tell stories, all filtered through their cynical or humorous lens.
+                    - **Witty Conclusion:** Summarizes the main (perhaps absurd) takeaways, possibly with a final sarcastic jab or an unexpected twist, leading smoothly into the call-to-action.
+                - **Strategically integrate 2-3 "Spike Moments" within the main content.** These are segments designed to be particularly memorable, funny, or insightful due to a sharp comedic observation, an unexpected sarcastic turn, a surprisingly blunt truth delivered with wit, or a moment of heightened (perhaps mock) drama. These should be identifiable *through the narrator's dialogue and delivery style* as implied by the script's wording, creating natural peaks in engagement. For example, the narrator might say something like, "And here's the kicker, the part where your jaw officially meets the floor..." or deliver a particularly cutting line.
+                - Use language that **actively creates curiosity and leverages the witty/sarcastic tone** to keep viewers entertained and watching. Wordplay, irony, and humorous understatements are encouraged.
+                - **ABSOLUTELY NO technical directions** like [PAUSE], [CUT TO], [SOUND EFFECT], [VISUAL DESCRIPTION], or any bracketed instructions for editing or voice acting. The script must *only* contain the words to be spoken.
+                - Ensure the script **flows naturally when read aloud**, maintaining the witty, sarcastic, and conversational style throughout. It should sound like someone genuinely (and hilariously) expressing these thoughts.
+                - The script should not include any cues for background music, sound effects, or visual elements on screen.
+                - Include an **engaging and characterful call-to-action** at the end, delivered in the narrator's witty/sarcastic style. It should feel like a natural extension of their personality (e.g., "So, if you enjoy a good dose of reality, however unpalatable, hit that subscribe button. Or don't. More existential dread for me, I guess.").
+                
+                YOUTUBE SCRIPT:
+                """
         
         script_prompt = PromptTemplate(
             input_variables=["topic"],
@@ -124,33 +128,58 @@ class YouTubeContentGenerator:
         """
         # First, we need to break down the script into 6 roughly equal parts
         section_prompt_template = """
-        I'm going to give you a YouTube script. Break this script into exactly 6 equal parts (approximately 10 seconds each when spoken).
-        
-        YOUTUBE SCRIPT:
-        {script}
-        
-        For each part, create a highly detailed image prompt that would perfectly illustrate what's being said in that section.
-        The image prompts should be extremely detailed, including:
-        - The main subject/focus
-        - Background elements and setting
-        - Lighting, mood, and atmosphere
-        - Style suggestion (photorealistic, illustrated, etc.)
-        - Color palette suggestions
-        - Any specific visual elements that support the narration
-        
-        Format your response exactly as a Python dictionary with keys 1-6 and detailed image prompts as values:
-        
-        {{
-            1: "First detailed image prompt...",
-            2: "Second detailed image prompt...",
-            3: "Third detailed image prompt...",
-            4: "Fourth detailed image prompt...",
-            5: "Fifth detailed image prompt...",
-            6: "Sixth detailed image prompt..."
-        }}
-        
-        Make sure your response can be directly parsed as a Python dictionary. Include ONLY the dictionary in your response.
-        """
+            I'm going to give you a YouTube script. Your task is to:
+            1.  Break this script into exactly 6 distinct parts, where each part represents approximately 10 seconds of spoken content. Prioritize natural narrative breaks or shifts in focus when determining segment boundaries, while still aiming for the ~10-second target per segment.
+            2.  For each of these 6 script parts, create a highly detailed image prompt suitable for an image generation AI.
+            
+            YOUTUBE SCRIPT:
+            {script}
+            
+            **CRITICAL GUIDELINES FOR CREATING EACH IMAGE PROMPT:**
+            
+            A.  **Literal Interpretation & No Emphasized Metaphors:**
+                * Visuals MUST be a direct, literal interpretation of the script segment's content.
+                * DO NOT use or visually emphasize metaphors. If the script uses metaphorical language, the image prompt should focus on the literal subject matter being discussed, or find a concrete, non-metaphorical way to illustrate the core idea presented in that segment. For instance, if the script says "drowning in paperwork," the image should depict a cluttered desk or an office scene with lots of paper, not a person literally submerged in water with papers.
+            
+            B.  **Avoid Human Facial Close-ups for Emotion/Curiosity:**
+                * If human figures are part of the image, DO NOT generate prompts that would result in facial close-ups primarily intended to display emotion (e.g., explicit sadness, joy) or curiosity.
+                * These aspects, if relevant to the script segment, should be conveyed more subtly through:
+                    * Body language, posture, or gestures (visible in medium or wider shots).
+                    * The composition and framing of the scene.
+                    * Interaction of characters with objects or their environment.
+                    * The overall atmosphere and lighting.
+                    * A focus on the *action* being performed rather than facial reaction.
+            
+            C.  **Direct and Accurate Script Alignment:**
+                * Each image prompt must meticulously and accurately reflect the specific content, tangible objects, actions, setting, and overall tone (especially any witty or sarcastic elements, conveyed subtly as per Guideline B) described or strongly implied in its corresponding 10-second script segment.
+                * The visual elements in the prompt must be a clear, unambiguous, and faithful illustration of that specific portion of the narration.
+            
+            **STRUCTURE FOR EACH OF THE 6 IMAGE PROMPTS:**
+            
+            Each detailed image prompt you create must comprehensively include the following, based *only* on its respective script segment:
+            
+            -   **Main Subject/Focus:** Clearly define the central element(s) or action. If the script discusses abstract concepts, describe a concrete scenario or objects that *literally represent an aspect* of that concept within the segment.
+            -   **Key Characters/Objects (if any):** Specify any characters (describing their implied actions or general appearance from a distance, avoiding facial emotion descriptors) or key objects central to the segment's narration.
+            -   **Background Elements and Setting:** Describe the relevant environment, ensuring it provides context derived from the script segment. Specify details like indoor/outdoor, time of day, and general locale. Note if the background should be detailed, minimalist, or suggestive.
+            -   **Lighting, Mood, and Atmosphere:** Detail the lighting conditions (e.g., bright natural light, dim artificial light, dramatic spotlighting). Describe the intended mood and atmosphere (e.g., serious, mundane, slightly absurd, calm, tense), ensuring it aligns with the script segment and the above guidelines.
+            -   **Implied Perspective/Composition:** Suggest an implied camera angle or composition that would best capture the scene without violating Guideline B (e.g., eye-level medium shot, wide establishing shot, dynamic low-angle of an object, overhead view of a scene, focus on hands performing a task).
+            -   **Style Suggestion:** Recommend a visual style (e.g., photorealistic, clean vector illustration, gritty graphic novel art, cinematic, technical blueprint, whimsical cartoon). The style should be appropriate for the segment's content and tone.
+            -   **Color Palette Suggestions:** Propose a color scheme that supports the style, mood, and content (e.g., muted and desaturated, vibrant and high-contrast, monochromatic with a single accent color, earthy tones).
+            -   **Specific Visual Elements Supporting Narration:** List 2-3 crucial, tangible visual details, objects, or actions *explicitly mentioned or strongly implied* in the script segment that are essential to include in the image.
+            
+            **OUTPUT FORMAT:**
+            
+            Format your response *exactly* as a Python dictionary with keys '1' through '6' (as strings or integers) and the detailed image prompts as their string values. Include ONLY this dictionary in your response. Example:
+            
+            {{
+                "1": "First detailed image prompt incorporating all above details for script segment 1...",
+                "2": "Second detailed image prompt incorporating all above details for script segment 2...",
+                "3": "Third detailed image prompt incorporating all above details for script segment 3...",
+                "4": "Fourth detailed image prompt incorporating all above details for script segment 4...",
+                "5": "Fifth detailed image prompt incorporating all above details for script segment 5...",
+                "6": "Sixth detailed image prompt incorporating all above details for script segment 6..."
+            }}
+            """
         
         section_prompt = PromptTemplate(
             input_variables=["script"],
