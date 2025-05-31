@@ -93,6 +93,7 @@ def crop_image(img, aspect_ratio: str) -> bool:
             desired_aspect = desired_ratio_w / desired_ratio_h
             current_aspect = original_width / original_height
             if round(current_aspect,1) == round(desired_aspect,1):
+              print(f"Original image dimensions: {original_width}x{original_height}")
               print(f"Image is already in the {aspect_ratio} aspect ratio")
               return img
             if current_aspect > desired_aspect:
@@ -162,37 +163,28 @@ def generate_images(prompts, output_path, api_key, num_images=3):
   output = {"script": prompts['script'], "image-paths": {}}
   image_count = 1
   for i, prompt in prompts['image-prompts'].items():
-      print("PROCESSING IMAGE: ", prompt)
-      prompt = prompt + "  in aspect ratio 16:9"
+      print("IMG PROMPT #:",i,"\nPROCESSING IMAGE: ", prompt)
+      # prompt = prompt + "  in aspect ratio 16:9"
       for _ in range(num_images):
+        img_created = False
         try:
             output_file = f"{output_path}/{image_count}.png"
             image_generator(prompt_str=prompt, output_filepath=output_file, api_key=api_key)
+            img_created = True
             approve, score = image_prompt_similarity_score(image_file_path=output_file, target_prompt=prompt,api_key=api_key)
             img_iter = 0
-            print(f"image #: {image_count}, prompt: {i}, score: {score}, image_iter: {img_iter}")
+            print(f"image #: {image_count}, img prompt #: {i}, score: {score}, image_iter: {img_iter}")
             while not approve and img_iter <= 5:
                 image_generator(prompt_str=prompt, output_filepath=output_file, api_key=api_key)
                 approve, score = image_prompt_similarity_score(image_file_path=output_file, target_prompt=prompt,api_key=api_key)
                 img_iter += 1
-                print(f"image #: {image_count}, prompt #: {i}, score: {score}, image_iter: {img_iter}")
+                print(f"image #: {image_count}, img prompt #: {i}, score: {score}, image_iter: {img_iter}")
         except Exception as e:
             print("ERROR OCCURED: ", e)
+            if img_created:
+                print("IMAGE ALREADY CREATED for img prompt #:", image_count, "score:", score)
             output_file = "No-image"
         print("IMAGE SAVED to: ", output_file,"\n")
         output["image-paths"][f"{image_count}"] = output_file
         image_count+=1
   return output
-
-
-if __name__ == "__main__":
-  input_file = 'data/input/what_if_NASA_had_budget_of_US_miltary.json'
-  output_folder = input_file.split('/')[-1].split('.json')[0]
-  output_path = f"data/output/{output_folder}/"
-  if not os.path.exists(output_path):
-      os.mkdir(output_path)
-  prompts = json.load(open(input_file))
-
-  output = generate_images(prompts, output_path)
-
-  json.dump(output, open(f"{output_path}{output_folder}_image_paths.json", 'w'))
