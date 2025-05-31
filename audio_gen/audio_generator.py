@@ -75,7 +75,7 @@ ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 
 
 
-def text_to_speech_file(text: str, save_dir: str, ELEVENLABS_API_KEY, save_file_name="audio_output.mp3") -> str:
+def text_to_speech_file(text: str, save_dir: str, ELEVENLABS_API_KEY, save_file_name="audio_output.mp3", AUDIO_SPEED=1.1) -> str:
     elevenlabs = ElevenLabs(
     api_key=ELEVENLABS_API_KEY,
 )
@@ -91,7 +91,7 @@ def text_to_speech_file(text: str, save_dir: str, ELEVENLABS_API_KEY, save_file_
             similarity_boost=1.0,
             style=0.0,
             use_speaker_boost=True,
-            speed=1.1,
+            speed=AUDIO_SPEED,
         ),
     )
 

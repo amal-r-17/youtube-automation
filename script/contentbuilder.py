@@ -10,7 +10,7 @@ class ContentCreator:
     Generates scripts and image prompts and returns them in a structured format.
     """
     
-    def __init__(self, llm_provider: str = "openai", api_key: Optional[str] = None, model_name: Optional[str] = None):
+    def __init__(self, llm_provider: str = "openai", api_key: Optional[str] = None, model_name: Optional[str] = None, MAX_VIDEO_LENGTH=1, NUM_IMG_PROMPTS=10, IMAGE_DIM=[1280, 720], ASPECT_RATIO="16:9"):
         """
         Initialize the ContentCreator with specified LLM provider.
         
@@ -22,7 +22,8 @@ class ContentCreator:
         self.generator = YouTubeContentGenerator(
             llm_provider=llm_provider, 
             api_key=api_key,
-            model_name=model_name
+            model_name=model_name,
+            MAX_VIDEO_LENGTH=MAX_VIDEO_LENGTH, NUM_IMG_PROMPTS=NUM_IMG_PROMPTS, IMAGE_DIM=IMAGE_DIM, ASPECT_RATIO=ASPECT_RATIO
         )
     
     def create_content(self, topic: str) -> Dict[str, Any]:
