@@ -159,7 +159,7 @@ def image_generator(prompt_str, api_key, model='gemini-2.0-flash-preview-image-g
             image.save(output_filepath)
 
 
-def generate_images(prompts, output_path, api_key, num_images=3):
+def generate_images(prompts, output_path, api_key, num_images=3, score_threshold=0.7):
   output = {"script": prompts['script'], "image-paths": {}}
   image_count = 1
   for i, prompt in prompts['image-prompts'].items():
@@ -170,13 +170,12 @@ def generate_images(prompts, output_path, api_key, num_images=3):
         try:
             output_file = f"{output_path}/{image_count}.png"
             image_generator(prompt_str=prompt, output_filepath=output_file, api_key=api_key)
-            img_created = True
-            approve, score = image_prompt_similarity_score(image_file_path=output_file, target_prompt=prompt,api_key=api_key)
+            approve, score = image_prompt_similarity_score(image_file_path=output_file, target_prompt=prompt,api_key=api_key, score_threshold=score_threshold)
             img_iter = 0
             print(f"image #: {image_count}, img prompt #: {i}, score: {score}, image_iter: {img_iter}")
             while not approve and img_iter <= 5:
                 image_generator(prompt_str=prompt, output_filepath=output_file, api_key=api_key)
-                approve, score = image_prompt_similarity_score(image_file_path=output_file, target_prompt=prompt,api_key=api_key)
+                approve, score = image_prompt_similarity_score(image_file_path=output_file, target_prompt=prompt,api_key=api_key, score_threshold=score_threshold)
                 img_iter += 1
                 print(f"image #: {image_count}, img prompt #: {i}, score: {score}, image_iter: {img_iter}")
         except Exception as e:

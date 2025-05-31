@@ -81,6 +81,7 @@ def create_video_from_images(images_folder, audio_file, output_file, target_size
     # Get all PNG files
     imges_len = len(os.listdir(images_folder))
     image_files = [f"{i+1}.png" for i in range(imges_len)]
+    image_files = [img_file for img_file in image_files if os.path.exists(os.path.join(images_folder,img_file))]
     # image_files = [f for f in os.listdir(images_folder) if f.lower().endswith('.png')]
     # image_files.sort()  # Sort alphabetically
     

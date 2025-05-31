@@ -21,7 +21,7 @@ class YouTubeContentGenerator:
     2. Break down a script into sections and generate detailed image prompts for each section
     """
     
-    def __init__(self, llm_provider: str = "openai", api_key: Optional[str] = None, model_name: Optional[str] = None):
+    def __init__(self, llm_provider: str = "openai", api_key: Optional[str] = None, model_name: Optional[str] = None, MAX_VIDEO_LENGTH = 1,      NUM_IMG_PROMPTS=2, IMAGE_DIM=[1280,720], ASPECT_RATIO="16:9"):
         """
         Initialize the YouTubeContentGenerator with a specific LLM provider.
         
@@ -35,6 +35,12 @@ class YouTubeContentGenerator:
         self.api_key = api_key
         self.model_name = model_name
         self.llm = self._initialize_llm()
+        self.video_len = MAX_VIDEO_LENGTH
+        self.num_img_prompts = NUM_IMG_PROMPTS
+        self.segment_len = round((self.video_len*60)/self.num_img_prompts)
+        self.IMAGE_DIM = IMAGE_DIM
+        self.ASPECT_RATIO = ASPECT_RATIO
+
         
     def _initialize_llm(self):
         """Initialize the LLM based on the selected provider."""
@@ -88,7 +94,7 @@ class YouTubeContentGenerator:
                 TOPIC: {topic}
                 
                 Requirements:
-                - The script should be for a video that's at least 1 minute long (aim for approximately [SUGGESTED TARGET LENGTH, e.g., 2-4 minutes] to allow for natural pacing and development of wit).
+                - The script should be for a video that's  approximately {max_minute} minutes long to allow for natural pacing and development of wit.
                 - The **narrator's persona must be distinctively witty and sarcastic**. Think [MENTION A TYPE OF WIT/SARCASM OR A COMEDIC PERSONA, e.g., "dry and observational like a seasoned cynic," or "energetically sarcastic with a playful edge," or "darkly humorous and self-deprecating"]. Their commentary should be clever, perhaps a bit irreverent, but ultimately keep the audience hooked.
                 - Include a **strong, witty, and attention-grabbing hook** at the beginning. This should immediately establish the sarcastic tone and make viewers desperate to know what's next.
                 - The script must have a clear structure:
@@ -106,12 +112,12 @@ class YouTubeContentGenerator:
                 """
         
         script_prompt = PromptTemplate(
-            input_variables=["topic"],
+            input_variables=["topic", "max_minute"],
             template=script_prompt_template
         )
         
         script_chain = LLMChain(llm=self.llm, prompt=script_prompt)
-        result = script_chain.run(topic=topic)
+        result = script_chain.run(topic=topic, max_minute=self.video_len)
         # print("result: ", result)
         # exit()
         return result.strip()
@@ -126,11 +132,12 @@ class YouTubeContentGenerator:
         Returns:
             Dict[int, str]: A dictionary mapping section numbers to detailed image prompts
         """
+        #round((max_minute*60)/max_image_prompts)
         # First, we need to break down the script into 6 roughly equal parts
         section_prompt_template = """
             I'm going to give you a YouTube script. Your task is to:
-            1.  Break this script into exactly 6 distinct parts, where each part represents approximately 10 seconds of spoken content. Prioritize natural narrative breaks or shifts in focus when determining segment boundaries, while still aiming for the ~10-second target per segment.
-            2.  For each of these 6 script parts, create a highly detailed image prompt suitable for an image generation AI.
+            1.  Break this script into exactly {max_image_prompts} distinct parts, where each part represents approximately {segment_len} seconds of spoken content. Prioritize natural narrative breaks or shifts in focus when determining segment boundaries, while still aiming for the ~{segment_len}-second target per segment.
+            2.  For each of these {max_image_prompts} script parts, create a highly detailed image prompt suitable for an image generation AI.
             
             YOUTUBE SCRIPT:
             {script}
@@ -154,7 +161,7 @@ class YouTubeContentGenerator:
                 * Each image prompt must meticulously and accurately reflect the specific content, tangible objects, actions, setting, and overall tone (especially any witty or sarcastic elements, conveyed subtly as per Guideline B) described or strongly implied in its corresponding 10-second script segment.
                 * The visual elements in the prompt must be a clear, unambiguous, and faithful illustration of that specific portion of the narration.
             
-            **STRUCTURE FOR EACH OF THE 6 IMAGE PROMPTS:**
+            **STRUCTURE FOR EACH OF THE {max_image_prompts} IMAGE PROMPTS:**
             
             Each detailed image prompt you create must comprehensively include the following, based *only* on its respective script segment:
             
@@ -166,10 +173,11 @@ class YouTubeContentGenerator:
             -   **Style Suggestion:** Recommend a visual style (e.g., photorealistic, clean vector illustration, gritty graphic novel art, cinematic, technical blueprint, whimsical cartoon). The style should be appropriate for the segment's content and tone.
             -   **Color Palette Suggestions:** Propose a color scheme that supports the style, mood, and content (e.g., muted and desaturated, vibrant and high-contrast, monochromatic with a single accent color, earthy tones).
             -   **Specific Visual Elements Supporting Narration:** List 2-3 crucial, tangible visual details, objects, or actions *explicitly mentioned or strongly implied* in the script segment that are essential to include in the image.
-            
+            -   **Image Dimension and Aspect Ratio:** Strictly make sure the image follow this: IMAGE Dimension WIDTH: {WIDTH}, HEIGHT: {HEIGHT}, 
+            Aspect ratio: {ASPECT_RATIO}
             **OUTPUT FORMAT:**
             
-            Format your response *exactly* as a Python dictionary with keys '1' through '6' (as strings or integers) and the detailed image prompts as their string values. Include ONLY this dictionary in your response. Example:
+            Format your response *exactly* as a Python dictionary with keys '1' through {max_image_prompts} (as strings or integers) and the detailed image prompts as their string values. Include ONLY this dictionary format in your response. Example:
             
             {{
                 "1": "First detailed image prompt incorporating all above details for script segment 1...",
@@ -177,17 +185,18 @@ class YouTubeContentGenerator:
                 "3": "Third detailed image prompt incorporating all above details for script segment 3...",
                 "4": "Fourth detailed image prompt incorporating all above details for script segment 4...",
                 "5": "Fifth detailed image prompt incorporating all above details for script segment 5...",
-                "6": "Sixth detailed image prompt incorporating all above details for script segment 6..."
+                "6": "Sixth detailed image prompt incorporating all above details for script segment 6...",
+                ...
             }}
             """
         
         section_prompt = PromptTemplate(
-            input_variables=["script"],
+            input_variables=["script", "max_image_prompts", "segment_len", "WIDTH", "HEIGHT", "ASPECT_RATIO"],
             template=section_prompt_template
         )
         
         section_chain = LLMChain(llm=self.llm, prompt=section_prompt)
-        result = section_chain.run(script=script)
+        result = section_chain.run(script=script, max_image_prompts=self.num_img_prompts, segment_len=self.segment_len, WIDTH=self.IMAGE_DIM[0], HEIGHT=self.IMAGE_DIM[1], ASPECT_RATIO=self.ASPECT_RATIO)
         # print("IMAGE PRMPTS: ", result)
         final_prompts = self.parse_image_prompts(result)
         # print("Final: ", final_prompts)

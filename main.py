@@ -38,6 +38,8 @@ def main():
     # IMAGE GEN API KEY
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
+    
+
     SAVE_DIR = os.getenv("SAVE_DIR")
     os.makedirs(SAVE_DIR, exist_ok=True)
     # Video size
@@ -46,24 +48,23 @@ def main():
     # VIDEO PARAMS
     MAX_LENTH_MINS = int(os.getenv("MAX_LENTH_MINS", 1))
     NUM_IMAGE_PROMPTS = int(os.getenv("NUM_IMAGE_PROMPTS", 10))
-    NUM_IMAGES_PER_PROMPTS = int(os.getenv("NUM_IMAGES_PER_PROMPTS", 2))
+    NUM_IMAGES_PER_PROMPTS = int(os.getenv("NUM_IMAGES_PER_PROMPTS" ,2))
     TARGET_SIZE = [int(val) for val in os.getenv("VIDEO_DIMENSION", "1280,720").split(",")]
-    ASPECT_RATIO = os.getenv("ASPECT_RATIO", "16:9")
+    ASPECT_RATIO = os.getenv("ASPECT_RATIO" ,"16:9")
 
     # IMAGE GEN
     IMG_SIMILARITY_THRESHOLD = float(os.getenv("IMG_SIMILARITY_THRESHOLD", 0.7))
 
-    # AUDIO
+    # AUDIO 
     GENERATE_CAPTIONS = bool(os.getenv("GENERATE_CAPTIONS", True))
-    AUDIO_PACE = float(os.getenv("AUDIO_PACE", 1.1))
+    AUDIO_PACE =  float(os.getenv("AUDIO_PACE", 1.1))
 
     # Instantiate the content creator
     creator = ContentCreator(
         llm_provider=llm_provider,
         api_key=api_key,
         model_name=model_name,
-        MAX_VIDEO_LENGTH=MAX_LENTH_MINS, NUM_IMG_PROMPTS=NUM_IMAGE_PROMPTS, IMAGE_DIM=TARGET_SIZE,
-        ASPECT_RATIO=ASPECT_RATIO
+        MAX_VIDEO_LENGTH=MAX_LENTH_MINS, NUM_IMG_PROMPTS=NUM_IMAGE_PROMPTS, IMAGE_DIM=TARGET_SIZE, ASPECT_RATIO=ASPECT_RATIO
     )
 
     # Get topic from command line arguments or use a default
@@ -91,6 +92,7 @@ def main():
     AUDIO_DIR = os.path.join(VIDEO_SAVE_DIR, "audio")
     os.makedirs(AUDIO_DIR, exist_ok=True)
 
+
     # Print the result
     print("\n=== Generated Script ===")
     print(result["script"])
@@ -109,7 +111,7 @@ def main():
 
     print("[INFO] Image Generation Started")
     # Gen images
-    generate_images(result, IMAGE_DIR, api_key=GOOGLE_API_KEY)
+    generate_images(result, IMAGE_DIR, api_key=GOOGLE_API_KEY, num_images=NUM_IMAGES_PER_PROMPTS, score_threshold=IMG_SIMILARITY_THRESHOLD)
     print("[INFO] Image Generation Completed")
 
     print("[INFO] TTS Started")
@@ -117,7 +119,7 @@ def main():
     # Processing the script to remove the text and video cues
     processed_script = remove_enclosed_segments(result["script"])
     # Audio gen
-    save_file_path = text_to_speech_file(text=processed_script, save_dir=AUDIO_DIR, ELEVENLABS_API_KEY=ELEVENLABS_API_KEY)
+    save_file_path = text_to_speech_file(text=processed_script, save_dir=AUDIO_DIR, ELEVENLABS_API_KEY=ELEVENLABS_API_KEY, AUDIO_SPEED=AUDIO_PACE)
     print("[INFO] TTS Completed")
 
     print("[INFO] VIDEO MERGING STARTED")
