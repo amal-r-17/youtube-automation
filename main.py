@@ -9,7 +9,7 @@ from image_gen.image_gen import generate_images  # Gen images
 from audio_gen.audio_generator import text_to_speech_file
 from video_gen.video_generator import create_video_from_images
 from video_gen.caption_generator import generate_captions
-
+from video_gen.avatar import add_avatar
 
 def remove_enclosed_segments(text):
     return re.sub(r"\*\*\([^)]*\)\*\*", "", text)
@@ -126,6 +126,12 @@ def main():
     video_path = os.path.join(VIDEO_SAVE_DIR, "merged_video.mp4")
     create_video_from_images(IMAGE_DIR, save_file_path, video_path, TARGET_SIZE)
     print("[INFO] VIDEO MERGING COMPLETED, saved to:",video_path)
+
+    print("[INFO] ADDING AVATAR")
+    scale = 0.5
+    add_avatar(audio_file=save_file_path, video_file=video_path, output_file=video_path, scale=scale)
+    print(f"[INFO] AVATAR ADDED TO VIDEO AT A SCALE OF {scale}, saved to:",video_path)
+
     output_path = os.path.join(VIDEO_SAVE_DIR, "final_video.mp4")
     print("[INFO] GENERATING CAPTIONS")
     model_path = os.getenv("MODEL_PATH")
@@ -134,5 +140,6 @@ def main():
     print(f"[INFO] FINAL VIDEO COMPLETED, saved to: {output_path}")
 
     return result
+
 if __name__ == "__main__":
     main()
