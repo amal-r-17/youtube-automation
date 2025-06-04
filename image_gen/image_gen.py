@@ -34,7 +34,6 @@ def cosine_similarity(vec1, vec2):
 def image_prompt_similarity_score(image_file_path,target_prompt,api_key,score_threshold=0.7):
     gen_ai.configure(api_key=api_key)
     vision_model = gen_ai.GenerativeModel('gemini-1.5-flash')
-    embedding_model = gen_ai.GenerativeModel('models/embedding-001')
     try:
         image_data_bytes = load_image_data(image_file_path)
         caption_response = vision_model.generate_content([

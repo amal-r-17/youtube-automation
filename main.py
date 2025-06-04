@@ -2,7 +2,6 @@ import os, re
 import json
 from typing import Dict, Any, Optional
 from dotenv import load_dotenv
-
 load_dotenv()  # take environment variables
 from script.contentbuilder import ContentCreator
 from image_gen.image_gen import generate_images  # Gen images
@@ -10,6 +9,7 @@ from audio_gen.audio_generator import text_to_speech_file
 from video_gen.video_generator import create_video_from_images
 from video_gen.caption_generator import generate_captions
 from video_gen.avatar import add_avatar
+from stock_media.stock_media_scrapper import scrape_stock_media
 
 def remove_enclosed_segments(text):
     return re.sub(r"\*\*\([^)]*\)\*\*", "", text)
@@ -51,6 +51,7 @@ def main():
     NUM_IMAGES_PER_PROMPTS = int(os.getenv("NUM_IMAGES_PER_PROMPTS" ,2))
     TARGET_SIZE = [int(val) for val in os.getenv("VIDEO_DIMENSION", "1280,720").split(",")]
     ASPECT_RATIO = os.getenv("ASPECT_RATIO" ,"16:9")
+    stock_media = os.getenv("INCLUDE_STOCK_MEDIA" ,True)
 
     # IMAGE GEN
     IMG_SIMILARITY_THRESHOLD = float(os.getenv("IMG_SIMILARITY_THRESHOLD", 0.7))
@@ -113,6 +114,17 @@ def main():
     # Gen images
     generate_images(result, IMAGE_DIR, api_key=GOOGLE_API_KEY, num_images=NUM_IMAGES_PER_PROMPTS, score_threshold=IMG_SIMILARITY_THRESHOLD)
     print("[INFO] Image Generation Completed")
+
+    if stock_media:
+        print("SCRAPING STOCK MEDIA")
+        stock_media_json_path = scrape_stock_media(data_folder_path=VIDEO_SAVE_DIR,
+                                                   json_file_path=file_path,
+                                                   aspect_ratio=ASPECT_RATIO,
+                                                   score_threshold=IMG_SIMILARITY_THRESHOLD,
+                                                   api_key=GOOGLE_API_KEY)
+        print("SCRAPING STOCK MEDIA COMPLETED")
+    else:
+        print("SCRAPING STOCK MEDIA - DISABLED")
 
     print("[INFO] TTS Started")
 
