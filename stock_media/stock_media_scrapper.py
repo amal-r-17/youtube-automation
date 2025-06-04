@@ -159,7 +159,7 @@ def convert_video_aspect_ratio(video_path: str, target_aspect_ratio: str = "16:9
             # print(f"Video is taller than {target_aspect_ratio}. Cropping height to {new_height}.")
         else:
             # print(f"Video is already at {target_aspect_ratio}. No cropping needed.")
-            output_filename = f"{os.path.splitext(video_path)[0]}_{target_aspect_ratio}_cropped{os.path.splitext(video_path)[1]}"
+            output_filename = f"{os.path.splitext(video_path)[0]}_{target_aspect_ratio.replace(':','_')}_cropped{os.path.splitext(video_path)[1]}"
             clip.write_videofile(output_filename, codec="libx264", audio_codec="aac", verbose=False, logger=None)
             clip.close()
             return output_filename
