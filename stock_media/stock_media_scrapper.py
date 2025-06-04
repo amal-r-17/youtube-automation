@@ -55,8 +55,8 @@ def scrape_links_pexels(driver,topic,orientation='landscape',num_scrolls=5):
         })
     return video_results
 
-def scrape_links_pixabay(topic):
-    url = f"https://pixabay.com/api/videos/?key=50676181-c43f0c83bf20fdc9b1af5e25b&q={topic.replace(" ","+")}"
+def scrape_links_pixabay(topic,pixaray_api_key):
+    url = f"https://pixabay.com/api/videos/?key={pixaray_api_key}={topic.replace(" ","+")}"
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
     results = json.loads(str(soup))
@@ -206,7 +206,7 @@ def scan_mediafiles(video_results,media_scrape_count,folder_path,score_threshold
         print("The media files are not related to the topic, best score:",best_media['score'])
     return video_output
 
-def scrape_stock_media(data_folder_path,json_file_path,aspect_ratio,score_threshold,api_key):
+def scrape_stock_media(data_folder_path,json_file_path,aspect_ratio,score_threshold,api_key,pixaray_api_key):
     json_file = json.load(open(json_file_path))
     image_prompts = json_file["image-prompts"]
     parts = aspect_ratio.split(':')
@@ -250,7 +250,7 @@ def scrape_stock_media(data_folder_path,json_file_path,aspect_ratio,score_thresh
 
         source = 'pixabay'
         print(f"From {source}")
-        video_results = scrape_links_pixabay(topic=subject)
+        video_results = scrape_links_pixabay(topic=subject,pixaray_api_key=pixaray_api_key)
         if video_results:
             folder_path=f"{data_folder_path}/stock_media/{source}/"
             video_output = scan_mediafiles(video_results,media_scrape_count,folder_path,score_threshold,prompt_index,aspect_ratio,video_output,source,api_key,prompt)

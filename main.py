@@ -37,6 +37,7 @@ def main():
     ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
     # IMAGE GEN API KEY
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+    PIXARAY_API_KEY = os.getenv("PIXARAY_API_KEY")
 
     
 
@@ -121,7 +122,8 @@ def main():
                                                    json_file_path=file_path,
                                                    aspect_ratio=ASPECT_RATIO,
                                                    score_threshold=IMG_SIMILARITY_THRESHOLD,
-                                                   api_key=GOOGLE_API_KEY)
+                                                   api_key=GOOGLE_API_KEY,
+                                                   pixaray_api_key=PIXARAY_API_KEY)
         print("SCRAPING STOCK MEDIA COMPLETED")
     else:
         print("SCRAPING STOCK MEDIA - DISABLED")
@@ -141,13 +143,14 @@ def main():
 
     print("[INFO] ADDING AVATAR")
     scale = 0.5
-    add_avatar(audio_file=save_file_path, video_file=video_path, output_file=video_path, scale=scale)
-    print(f"[INFO] AVATAR ADDED TO VIDEO AT A SCALE OF {scale}, saved to:",video_path)
+    avatar_path = os.path.join(VIDEO_SAVE_DIR, "avatar_video.mp4")
+    add_avatar(audio_file=save_file_path, video_file=video_path, output_file=avatar_path, scale=scale)
+    print(f"[INFO] AVATAR ADDED TO VIDEO AT A SCALE OF {scale}, saved to:",avatar_path)
 
     output_path = os.path.join(VIDEO_SAVE_DIR, "final_video.mp4")
     print("[INFO] GENERATING CAPTIONS")
     model_path = os.getenv("MODEL_PATH")
-    generate_captions(video_path, output_path, model_path)
+    generate_captions(avatar_path, output_path, model_path)
     print("[INFO] CAPTIONS GENERATED")
     print(f"[INFO] FINAL VIDEO COMPLETED, saved to: {output_path}")
 
