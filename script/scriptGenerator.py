@@ -79,7 +79,7 @@ class YouTubeContentGenerator:
             raise ValueError(f"Unsupported LLM provider: {self.llm_provider}. " 
                            f"Supported providers: openai, grok, gemini, claude, ollama")
     
-    def generate_youtube_script(self, topic: str) -> str:
+    def generate_youtube_script(self, topic: str, context: str = "") -> str:
         """
         Generate an engaging YouTube script based on the provided topic.
         
@@ -91,33 +91,54 @@ class YouTubeContentGenerator:
         """
         script_prompt_template = """Create an engaging, curiosity-peaking YouTube script on the following topic:
 
-                TOPIC: {topic}
-                
-                Requirements:
-                - The script should be for a video that's  approximately {max_minute} minutes long to allow for natural pacing and development of wit.
-                - The **narrator's persona must be distinctively witty and sarcastic**. Think [MENTION A TYPE OF WIT/SARCASM OR A COMEDIC PERSONA, e.g., "dry and observational like a seasoned cynic," or "energetically sarcastic with a playful edge," or "darkly humorous and self-deprecating"]. Their commentary should be clever, perhaps a bit irreverent, but ultimately keep the audience hooked.
-                - Include a **strong, witty, and attention-grabbing hook** at the beginning. This should immediately establish the sarcastic tone and make viewers desperate to know what's next.
-                - The script must have a clear structure:
-                    - **Witty Introduction:** Sets the stage, introduces the topic with the narrator's unique, sarcastic perspective, and perhaps pokes fun at common misconceptions or the topic itself.
-                    - **Main Content (3-4 Key Points):** Each point should be presented with the narrator's signature wit and sarcasm. This is where you'll build arguments, share facts, or tell stories, all filtered through their cynical or humorous lens.
-                    - **Witty Conclusion:** Summarizes the main (perhaps absurd) takeaways, possibly with a final sarcastic jab or an unexpected twist, leading smoothly into the call-to-action.
-                - **Strategically integrate 2-3 "Spike Moments" within the main content.** These are segments designed to be particularly memorable, funny, or insightful due to a sharp comedic observation, an unexpected sarcastic turn, a surprisingly blunt truth delivered with wit, or a moment of heightened (perhaps mock) drama. These should be identifiable *through the narrator's dialogue and delivery style* as implied by the script's wording, creating natural peaks in engagement. For example, the narrator might say something like, "And here's the kicker, the part where your jaw officially meets the floor..." or deliver a particularly cutting line.
-                - Use language that **actively creates curiosity and leverages the witty/sarcastic tone** to keep viewers entertained and watching. Wordplay, irony, and humorous understatements are encouraged.
-                - **ABSOLUTELY NO technical directions** like [PAUSE], [CUT TO], [SOUND EFFECT], [VISUAL DESCRIPTION], or any bracketed instructions for editing or voice acting. The script must *only* contain the words to be spoken.
-                - Ensure the script **flows naturally when read aloud**, maintaining the witty, sarcastic, and conversational style throughout. It should sound like someone genuinely (and hilariously) expressing these thoughts.
-                - The script should not include any cues for background music, sound effects, or visual elements on screen.
-                - Include an **engaging and characterful call-to-action** at the end, delivered in the narrator's witty/sarcastic style. It should feel like a natural extension of their personality (e.g., "So, if you enjoy a good dose of reality, however unpalatable, hit that subscribe button. Or don't. More existential dread for me, I guess.").
-                - Make sure that the actual script doesn't include any mentioning of background sound, or specifiying the spike moments or spike points, it should only be the final script thats it.
-                YOUTUBE SCRIPT:
+                            TOPIC: {topic}
+
+                            CONTEXT (if available): {context}
+                            *Note: Use the provided context to inform your script with current, relevant information. If context is provided, prioritize these details and weave them naturally into your narrative. If no context is provided or context is empty, rely on your existing knowledge to create compelling content.*
+
+                            Requirements:
+                            - The script should be for a video that's approximately {max_minute} minutes long to allow for natural pacing and development of wit.
+                            - The **narrator's persona must be distinctively witty and sarcastic**. Think [MENTION A TYPE OF WIT/SARCASM OR A COMEDIC PERSONA, e.g., "dry and observational like a seasoned cynic," or "energetically sarcastic with a playful edge," or "darkly humorous and self-deprecating"]. Their commentary should be clever, perhaps a bit irreverent, but ultimately keep the audience hooked.
+                            - Include a **strong, witty, and attention-grabbing hook** at the beginning. This should immediately establish the sarcastic tone and make viewers desperate to know what's next.
+                            - The script must have a clear structure:
+                                - **Witty Introduction:** Sets the stage, introduces the topic with the narrator's unique, sarcastic perspective, and perhaps pokes fun at common misconceptions or the topic itself.
+                                - **Main Content (3-4 Key Points):** Each point should be presented with the narrator's signature wit and sarcasm. This is where you'll build arguments, share facts, or tell stories, all filtered through their cynical or humorous lens. *If context is provided, integrate relevant information from the context naturally into these points.*
+                                - **Witty Conclusion:** Summarizes the main (perhaps absurd) takeaways, possibly with a final sarcastic jab or an unexpected twist, leading smoothly into the call-to-action.
+                            - **Strategically integrate 2-3 "Spike Moments" within the main content.** These are segments designed to be particularly memorable, funny, or insightful due to a sharp comedic observation, an unexpected sarcastic turn, a surprisingly blunt truth delivered with wit, or a moment of heightened (perhaps mock) drama. These should be identifiable *through the narrator's dialogue and delivery style* as implied by the script's wording, creating natural peaks in engagement. For example, the narrator might say something like, "And here's the kicker, the part where your jaw officially meets the floor..." or deliver a particularly cutting line.
+                            - **When context is available:** 
+                                - Seamlessly blend web-sourced information with your narrative voice
+                                - Use current examples, recent developments, or fresh perspectives from the context
+                                - Reference specific details, statistics, or quotes that enhance the story
+                                - Maintain the witty tone even when presenting factual information from the context
+                            - **When context is not available:**
+                                - Draw from your existing knowledge base to create compelling content
+                                - Focus on timeless aspects of the topic that don't require recent updates
+                                - Use well-established facts, historical examples, or universal truths about the subject
+                            - Use language that **actively creates curiosity and leverages the witty/sarcastic tone** to keep viewers entertained and watching. Wordplay, irony, and humorous understatements are encouraged.
+                            - **ABSOLUTELY NO technical directions** like [PAUSE], [CUT TO], [SOUND EFFECT], [VISUAL DESCRIPTION], or any bracketed instructions for editing or voice acting. The script must *only* contain the words to be spoken.
+                            - Ensure the script **flows naturally when read aloud**, maintaining the witty, sarcastic, and conversational style throughout. It should sound like someone genuinely (and hilariously) expressing these thoughts.
+                            - The script should not include any cues for background music, sound effects, or visual elements on screen.
+                            - Include an **engaging and characterful call-to-action** at the end, delivered in the narrator's witty/sarcastic style. It should feel like a natural extension of their personality (e.g., "So, if you enjoy a good dose of reality, however unpalatable, hit that subscribe button. Or don't. More existential dread for me, I guess.").
+                            - Make sure that the actual script doesn't include any mentioning of background sound, or specifying the spike moments or spike points, it should only be the final script that's it.
+                            - **CRITICAL: The output must ONLY contain the spoken dialogue.** Do not include:
+                                - Section headers like "Introduction," "Main Content," "Conclusion"
+                                - Point numbers like "Point 1," "Point 2," etc.
+                                - Labels like "Hook:" or "Call-to-Action:"
+                                - Any meta-commentary about the script structure
+                                - Transition markers or formatting indicators
+                            - **Start immediately with the opening hook dialogue** and flow seamlessly through to the final call-to-action without any structural labels or breaks.
+                            - The response should read like a continuous monologue that could be spoken directly into a microphone.
+
+                            YOUTUBE SCRIPT:
                 """
         
         script_prompt = PromptTemplate(
-            input_variables=["topic", "max_minute"],
+            input_variables=["topic", "max_minute", "context"],
             template=script_prompt_template
         )
         
         script_chain = LLMChain(llm=self.llm, prompt=script_prompt)
-        result = script_chain.run(topic=topic, max_minute=self.video_len)
+        result = script_chain.run(topic=topic, max_minute=self.video_len, context=context)
         # print("result: ", result)
         # exit()
         return result.strip()

@@ -10,6 +10,7 @@ from audio_gen.audio_generator import text_to_speech_file
 from video_gen.video_generator import create_video_from_images
 from video_gen.caption_generator import generate_captions
 from video_gen.avatar import add_avatar
+from context_extract.Scrapper import ContentSummarizer
 
 def remove_enclosed_segments(text):
     return re.sub(r"\*\*\([^)]*\)\*\*", "", text)
@@ -70,15 +71,29 @@ def main():
     # Get topic from command line arguments or use a default
     import sys
     topic = sys.argv[1] if len(sys.argv) > 1 else "what if NASA had the budget of US military?"
+    search_web = bool(sys.argv[2]) if len(sys.argv) > 2 else False
 
     print(f"Generating YouTube content for topic: '{topic}'")
     print(f"Using LLM provider: {llm_provider}")
 
+    # Getting the context for the script generation by scrapping
+    if search_web:
+        scrapper = ContentSummarizer(min_len=20, api_key=GOOGLE_API_KEY)
+        context = scrapper.run(topic=topic)
+    else:
+        context = ""
+
     # Generate content
-    result = creator.create_content(topic)
+    result = creator.create_content(topic, context=context)
+
+    # Adding context to result
+    result["context"] = context
+    
+    print("result: ", result)
+    # exit()
 
     # Getting the title for saving dir
-    result = creator.create_content(topic)
+    # result = creator.create_content(topic)
     title = "_".join(result["meta_data"]["title_suggestions"][0].split())
 
     VIDEO_SAVE_DIR = os.path.join(SAVE_DIR, title)
@@ -101,6 +116,8 @@ def main():
     for section_num, prompt in result["image-prompts"].items():
         print(f"Section {section_num}:")
         print(prompt)
+
+    
 
     # Save to file
     filename = os.path.join(VIDEO_SAVE_DIR, f"youtube_content_{topic.replace(' ', '_')[:20]}.json")
