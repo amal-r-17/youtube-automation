@@ -114,6 +114,7 @@ def main():
     generate_images(result, IMAGE_DIR, api_key=GOOGLE_API_KEY, num_images=NUM_IMAGES_PER_PROMPTS, score_threshold=IMG_SIMILARITY_THRESHOLD)
     print("[INFO] Image Generation Completed")
 
+    # exit()
     print("[INFO] TTS Started")
 
     # Processing the script to remove the text and video cues
@@ -129,13 +130,14 @@ def main():
 
     print("[INFO] ADDING AVATAR")
     scale = 0.5
-    add_avatar(audio_file=save_file_path, video_file=video_path, output_file=video_path, scale=scale)
-    print(f"[INFO] AVATAR ADDED TO VIDEO AT A SCALE OF {scale}, saved to:",video_path)
+    avatar_video_path = os.path.join(VIDEO_SAVE_DIR, "avatar_video.mp4")
+    add_avatar(audio_file=save_file_path, video_file=video_path, output_file=avatar_video_path, scale=scale)
+    print(f"[INFO] AVATAR ADDED TO VIDEO AT A SCALE OF {scale}, saved to:",avatar_video_path)
 
     output_path = os.path.join(VIDEO_SAVE_DIR, "final_video.mp4")
     print("[INFO] GENERATING CAPTIONS")
     model_path = os.getenv("MODEL_PATH")
-    generate_captions(video_path, output_path, model_path)
+    generate_captions(avatar_video_path, output_path, model_path)
     print("[INFO] CAPTIONS GENERATED")
     print(f"[INFO] FINAL VIDEO COMPLETED, saved to: {output_path}")
 

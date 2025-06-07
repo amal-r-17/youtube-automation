@@ -436,3 +436,10 @@ def generate_captions(input_path,output_path,model_path):
             print(f"Process complete. Output video: {output_path}")
         else:
             print("Process aborted: No text was transcribed or prepared for captions.")
+
+if __name__ == "__main__":
+    input_path = "/home/amal/amal/side/youtube-automation/data/Canada:_51st_State?!/avatar_video.mp4"
+    output_path = "/home/amal/amal/side/youtube-automation/data/Canada:_51st_State?!/final_video.mp4"
+    model_path = "/home/amal/amal/side/youtube-automation/models/base.pt"
+
+    generate_captions(input_path,output_path,model_path)

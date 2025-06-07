@@ -107,7 +107,7 @@ class YouTubeContentGenerator:
                 - Ensure the script **flows naturally when read aloud**, maintaining the witty, sarcastic, and conversational style throughout. It should sound like someone genuinely (and hilariously) expressing these thoughts.
                 - The script should not include any cues for background music, sound effects, or visual elements on screen.
                 - Include an **engaging and characterful call-to-action** at the end, delivered in the narrator's witty/sarcastic style. It should feel like a natural extension of their personality (e.g., "So, if you enjoy a good dose of reality, however unpalatable, hit that subscribe button. Or don't. More existential dread for me, I guess.").
-                
+                - Make sure that the actual script doesn't include any mentioning of background sound, or specifiying the spike moments or spike points, it should only be the final script thats it.
                 YOUTUBE SCRIPT:
                 """
         
