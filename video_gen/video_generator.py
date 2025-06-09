@@ -86,7 +86,7 @@ def create_video_from_images(images_folder, audio_file, output_file, target_size
     # image_files.sort()  # Sort alphabetically
     
     if not image_files:
-        raise ValueError("No PNG files found in the specified folder")
+        raise ValueError(f"No PNG files found in the specified folder, {images_folder}")
     
     print(f"Found {len(image_files)} images")
     

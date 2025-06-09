@@ -97,7 +97,10 @@ class YouTubeContentGenerator:
                             *Note: Use the provided context to inform your script with current, relevant information. If context is provided, prioritize these details and weave them naturally into your narrative. If no context is provided or context is empty, rely on your existing knowledge to create compelling content.*
 
                             Requirements:
-                            - The script should be for a video that's approximately {max_minute} minutes long to allow for natural pacing and development of wit.
+                            - Divide this script into exactly {max_image_prompts} scenes, each approximately {segment_len} seconds of spoken content. Breaks should prioritize **natural narrative shifts** (e.g., change in subject, tone, or joke setup), but aim to stay close to the ~{segment_len}-second target for balance.
+                            - The {max_image_prompts} scenes in the script must be separated by the symbol <>
+                            - Don't add any text indicating scene index or youtube script
+                            - The script should be for a video that's approximately {max_minute} minutes long to allow for natural pacing, punchlines, and witty delivery.
                             - The **narrator's persona must be distinctively witty and sarcastic**. Think [MENTION A TYPE OF WIT/SARCASM OR A COMEDIC PERSONA, e.g., "dry and observational like a seasoned cynic," or "energetically sarcastic with a playful edge," or "darkly humorous and self-deprecating"]. Their commentary should be clever, perhaps a bit irreverent, but ultimately keep the audience hooked.
                             - Include a **strong, witty, and attention-grabbing hook** at the beginning. This should immediately establish the sarcastic tone and make viewers desperate to know what's next.
                             - The script must have a clear structure:
@@ -133,95 +136,77 @@ class YouTubeContentGenerator:
                 """
         
         script_prompt = PromptTemplate(
-            input_variables=["topic", "max_minute", "context"],
+            input_variables=["topic", "max_minute", "context","max_image_prompts","segment_len"],
             template=script_prompt_template
         )
         
         script_chain = LLMChain(llm=self.llm, prompt=script_prompt)
-        result = script_chain.run(topic=topic, max_minute=self.video_len, context=context)
-        # print("result: ", result)
-        # exit()
+        result = script_chain.run(topic=topic, max_minute=self.video_len, context=context,max_image_prompts=self.num_img_prompts,segment_len=self.segment_len)
         return result.strip()
     
-    def generate_image_prompts(self, script: str) -> Dict[int, str]:
-        """
-        Break down a YouTube script into 6 sections and generate detailed image prompts for each.
-        
-        Args:
-            script (str): The YouTube script to process
-            
-        Returns:
-            Dict[int, str]: A dictionary mapping section numbers to detailed image prompts
-        """
-        #round((max_minute*60)/max_image_prompts)
-        # First, we need to break down the script into 6 roughly equal parts
+    def generate_image_prompts(self, script: str, topic: str) -> Dict[str, str]:
         section_prompt_template = """
-            I'm going to give you a YouTube script. Your task is to:
-            1.  Break this script into exactly {max_image_prompts} distinct parts, where each part represents approximately {segment_len} seconds of spoken content. Prioritize natural narrative breaks or shifts in focus when determining segment boundaries, while still aiming for the ~{segment_len}-second target per segment.
-            2.  For each of these {max_image_prompts} script parts, create a highly detailed image prompt suitable for an image generation AI.
-            
-            YOUTUBE SCRIPT:
-            {script}
-            
-            **CRITICAL GUIDELINES FOR CREATING EACH IMAGE PROMPT:**
-            
-            A.  **Literal Interpretation & No Emphasized Metaphors:**
-                * Visuals MUST be a direct, literal interpretation of the script segment's content.
-                * DO NOT use or visually emphasize metaphors. If the script uses metaphorical language, the image prompt should focus on the literal subject matter being discussed, or find a concrete, non-metaphorical way to illustrate the core idea presented in that segment. For instance, if the script says "drowning in paperwork," the image should depict a cluttered desk or an office scene with lots of paper, not a person literally submerged in water with papers.
-            
-            B.  **Avoid Human Facial Close-ups for Emotion/Curiosity:**
-                * If human figures are part of the image, DO NOT generate prompts that would result in facial close-ups primarily intended to display emotion (e.g., explicit sadness, joy) or curiosity.
-                * These aspects, if relevant to the script segment, should be conveyed more subtly through:
-                    * Body language, posture, or gestures (visible in medium or wider shots).
-                    * The composition and framing of the scene.
-                    * Interaction of characters with objects or their environment.
-                    * The overall atmosphere and lighting.
-                    * A focus on the *action* being performed rather than facial reaction.
-            
-            C.  **Direct and Accurate Script Alignment:**
-                * Each image prompt must meticulously and accurately reflect the specific content, tangible objects, actions, setting, and overall tone (especially any witty or sarcastic elements, conveyed subtly as per Guideline B) described or strongly implied in its corresponding 10-second script segment.
-                * The visual elements in the prompt must be a clear, unambiguous, and faithful illustration of that specific portion of the narration.
-            
-            **STRUCTURE FOR EACH OF THE {max_image_prompts} IMAGE PROMPTS:**
-            
-            Each detailed image prompt you create must comprehensively include the following, based *only* on its respective script segment:
-            
-            -   **Main Subject/Focus:** Clearly define the central element(s) or action. If the script discusses abstract concepts, describe a concrete scenario or objects that *literally represent an aspect* of that concept within the segment.
-            -   **Key Characters/Objects (if any):** Specify any characters (describing their implied actions or general appearance from a distance, avoiding facial emotion descriptors) or key objects central to the segment's narration.
-            -   **Background Elements and Setting:** Describe the relevant environment, ensuring it provides context derived from the script segment. Specify details like indoor/outdoor, time of day, and general locale. Note if the background should be detailed, minimalist, or suggestive.
-            -   **Lighting, Mood, and Atmosphere:** Detail the lighting conditions (e.g., bright natural light, dim artificial light, dramatic spotlighting). Describe the intended mood and atmosphere (e.g., serious, mundane, slightly absurd, calm, tense), ensuring it aligns with the script segment and the above guidelines.
-            -   **Implied Perspective/Composition:** Suggest an implied camera angle or composition that would best capture the scene without violating Guideline B (e.g., eye-level medium shot, wide establishing shot, dynamic low-angle of an object, overhead view of a scene, focus on hands performing a task).
-            -   **Style Suggestion:** Recommend a visual style (e.g., photorealistic, clean vector illustration, gritty graphic novel art, cinematic, technical blueprint, whimsical cartoon). The style should be appropriate for the segment's content and tone.
-            -   **Color Palette Suggestions:** Propose a color scheme that supports the style, mood, and content (e.g., muted and desaturated, vibrant and high-contrast, monochromatic with a single accent color, earthy tones).
-            -   **Specific Visual Elements Supporting Narration:** List 2-3 crucial, tangible visual details, objects, or actions *explicitly mentioned or strongly implied* in the script segment that are essential to include in the image.
-            -   **Image Dimension and Aspect Ratio:** Strictly make sure the image follow this: IMAGE Dimension WIDTH: {WIDTH}, HEIGHT: {HEIGHT}, 
-            Aspect ratio: {ASPECT_RATIO}
-            **OUTPUT FORMAT:**
-            
-            Format your response *exactly* as a Python dictionary with keys '1' through {max_image_prompts} (as strings or integers) and the detailed image prompts as their string values. Include ONLY this dictionary format in your response. Example:
-            
-            {{
-                "1": "First detailed image prompt incorporating all above details for script segment 1...",
-                "2": "Second detailed image prompt incorporating all above details for script segment 2...",
-                "3": "Third detailed image prompt incorporating all above details for script segment 3...",
-                "4": "Fourth detailed image prompt incorporating all above details for script segment 4...",
-                "5": "Fifth detailed image prompt incorporating all above details for script segment 5...",
-                "6": "Sixth detailed image prompt incorporating all above details for script segment 6...",
-                ...
-            }}
-            """
-        
+        You are given a YouTube narration script for a scene. Your task is to:
+    
+        SCENE: {scene}
+
+        Generate an **extremely detailed, literal, and visually grounded** image prompt suitable for image generation AI, fully aligned with the narration.
+
+        IMPORTANT: Follow these critical guidelines:
+
+        A. **Absolutely No Metaphors or Visual Abstractions**
+        - Do NOT create prompt for figurative phrases, visual metaphors, or surreal representations.
+        - Only portray literal, concrete subjects, actions, or locations described or strongly implied in the narration.
+        - The image should be related to the context of {topic}
+        - For example, if the script says, “I was drowning in work,” the image should show a cluttered workspace, NOT a person submerged in a sea of documents.
+        - All image prompts must be based in **observable, physical scenes or actions**.
+
+        B. **No Facial Close-Ups to Depict Emotion or Curiosity**
+        - If people appear, show them in medium or wide shots.
+        - Emotions should be conveyed subtly through posture, body language, or scene composition—not via close-up expressions.
+
+        C. **Faithful Visual Representation of the Script**
+        - Each image must accurately reflect what is happening in that portion of the script. Avoid inserting additional interpretations, jokes, or embellishments not directly supported by the text.
+        - Prioritize key actions, settings, physical objects, or characters that are explicitly or implicitly present in that part of the narration.
+
+        D. **Image Prompt Structure :**
+
+        Return your response as a text which is a full detailed image prompt for that scene. The image prompt must include:
+
+        - **Main Subject/Focus:** What’s the key visual or action being described? Ground it in the script.
+        - **Key Characters/Objects (if any):** Describe visible figures or important objects. Avoid focusing on facial expressions.
+        - **Background and Setting:** Indoors/outdoors, location, time of day, and relevant context. Detailed or suggestive background based on script tone.
+        - **Lighting, Mood, and Atmosphere:** E.g., bright daylight, office gloom, chaotic kitchen, sarcastic tension, etc.
+        - **Implied Perspective/Composition:** Suggested camera angle or framing—medium shot, overhead, wide, etc.—avoiding metaphorical/emotive close-ups.
+        - **Style Suggestion:** Photorealistic, cartoonish, cinematic, blueprint, vector, gritty comic, etc. Suit style to tone of narration.
+        - **Color Palette Suggestions:** Vibrant, desaturated, pastel, moody shadows, high contrast, muted tones, etc.
+        - **Must-Have Visual Elements:** 2–3 tangible items, places, or actions **explicitly described or strongly implied** in the script segment.
+        - **Image Dimensions & Aspect Ratio:** Ensure strict adherence to: WIDTH: {WIDTH}, HEIGHT: {HEIGHT}, Aspect ratio: {ASPECT_RATIO}
+        - **Image must have 4k picture quality
+
+        ⚠️ **DO NOT** include any bracketed or editorial comments like [SHOW SCENE OF…] or [LIGHTNING IN BACKGROUND]. Only return the image prompts as final spoken scene descriptions.
+
+        **OUTPUT FORMAT:**
+
+        Return the image prompt in text format
+        """
+
         section_prompt = PromptTemplate(
-            input_variables=["script", "max_image_prompts", "segment_len", "WIDTH", "HEIGHT", "ASPECT_RATIO"],
+            input_variables=["scene","topic", "WIDTH", "HEIGHT", "ASPECT_RATIO"],
             template=section_prompt_template
         )
-        
+
+        scenes = [scene.strip('\n') for scene in script.split('<>')]
         section_chain = LLMChain(llm=self.llm, prompt=section_prompt)
-        result = section_chain.run(script=script, max_image_prompts=self.num_img_prompts, segment_len=self.segment_len, WIDTH=self.IMAGE_DIM[0], HEIGHT=self.IMAGE_DIM[1], ASPECT_RATIO=self.ASPECT_RATIO)
-        # print("IMAGE PRMPTS: ", result)
-        final_prompts = self.parse_image_prompts(result)
-        # print("Final: ", final_prompts)
-        # exit()
+        final_prompts = {}
+        for index, scene in enumerate(scenes):
+            resp = section_chain.run(scene=scene,
+                                     topic=topic,
+                                     WIDTH=1280,
+                                     HEIGHT=720,
+                                     ASPECT_RATIO="16:9")
+            final_prompts[f'{index + 1}'] = resp
+        # final_prompts = self.parse_image_prompts(final_prompts)
         return final_prompts
         
     

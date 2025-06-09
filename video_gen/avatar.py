@@ -408,5 +408,5 @@ if __name__ == "__main__":
         video_file=video_path, 
         output_file=output_path, 
         scale=scale,
-        chunk_duration=10  # Process in 10-second chunks
+        chunk_duration=30  # Process in 10-second chunks
     )

@@ -7,16 +7,21 @@ load_dotenv()  # take environment variables
 from script.contentbuilder import ContentCreator
 from image_gen.image_gen import generate_images  # Gen images
 from audio_gen.audio_generator import text_to_speech_file
+from audio_gen.audio_generator_gemini import generate_audio
 from video_gen.video_generator import create_video_from_images
 from video_gen.caption_generator import generate_captions
 from video_gen.avatar import add_avatar
+from video_gen.audio_video_sync import fetch_audio_timings
 from context_extract.Scrapper import ContentSummarizer
+from stock_media.stock_media_scrapper import scrape_stock_media
+from context_extract.topic_grounding import grounding_gemini
 
 def remove_enclosed_segments(text):
     return re.sub(r"\*\*\([^)]*\)\*\*", "", text)
 
 
 def main():
+    load_dotenv()
     """
     Main function to demonstrate the content creation workflow.
     """
@@ -38,8 +43,8 @@ def main():
     ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
     # IMAGE GEN API KEY
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-
-    
+    PIXARAY_API_KEY = os.getenv("PIXARAY_API_KEY")
+    ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY")
 
     SAVE_DIR = os.getenv("SAVE_DIR")
     os.makedirs(SAVE_DIR, exist_ok=True)
@@ -57,8 +62,12 @@ def main():
     IMG_SIMILARITY_THRESHOLD = float(os.getenv("IMG_SIMILARITY_THRESHOLD", 0.7))
 
     # AUDIO 
-    GENERATE_CAPTIONS = bool(os.getenv("GENERATE_CAPTIONS", True))
+    GENERATE_CAPTIONS = os.getenv("GENERATE_CAPTIONS", True)
+    stock_media = os.getenv("INCLUDE_STOCK_MEDIA", True)
+    ADD_AVATAR = os.getenv("INCLUDE_AVATAR", True)
     AUDIO_PACE =  float(os.getenv("AUDIO_PACE", 1.1))
+    TTS_MODEL = os.getenv("TTS_MODEL")
+    CONTENT_SCRAPER_MODEL = os.getenv("CONTENT_SCRAPER_MODEL")
 
     # Instantiate the content creator
     creator = ContentCreator(
@@ -78,9 +87,16 @@ def main():
 
     # Getting the context for the script generation by scrapping
     if search_web:
-        scrapper = ContentSummarizer(min_len=20, api_key=GOOGLE_API_KEY)
-        context = scrapper.run(topic=topic)
+        print(f'Scrapping {topic} content',end=' ')
+        if CONTENT_SCRAPER_MODEL == 'GEMINI':
+            print('with Gemini')
+            context = grounding_gemini(api_key=GOOGLE_API_KEY, topic=topic)
+        else:
+            print('with DuckDuckGo')
+            scrapper = ContentSummarizer(min_len=20, api_key=GOOGLE_API_KEY)
+            context = scrapper.run(topic=topic)
     else:
+        print('Scraping content disabled')
         context = ""
 
     # Generate content
@@ -90,10 +106,7 @@ def main():
     result["context"] = context
     
     print("result: ", result)
-    # exit()
 
-    # Getting the title for saving dir
-    # result = creator.create_content(topic)
     title = "_".join(result["meta_data"]["title_suggestions"][0].split())
 
     VIDEO_SAVE_DIR = os.path.join(SAVE_DIR, title)
@@ -107,7 +120,6 @@ def main():
     AUDIO_DIR = os.path.join(VIDEO_SAVE_DIR, "audio")
     os.makedirs(AUDIO_DIR, exist_ok=True)
 
-
     # Print the result
     print("\n=== Generated Script ===")
     print(result["script"])
@@ -117,28 +129,50 @@ def main():
         print(f"Section {section_num}:")
         print(prompt)
 
-    
-
     # Save to file
     filename = os.path.join(VIDEO_SAVE_DIR, f"youtube_content_{topic.replace(' ', '_')[:20]}.json")
     file_path = creator.save_to_json(result, filename)
     print(f"\nContent saved to: {file_path}")
 
-    # exit()
-
     print("[INFO] Image Generation Started")
     # Gen images
     generate_images(result, IMAGE_DIR, api_key=GOOGLE_API_KEY, num_images=NUM_IMAGES_PER_PROMPTS, score_threshold=IMG_SIMILARITY_THRESHOLD)
-    print("[INFO] Image Generation Completed")
+    print(f"[INFO] Image Generation Completed, saved to {IMAGE_DIR}")
 
-    # exit()
-    print("[INFO] TTS Started")
+    if stock_media == 'TRUE':
+        print("[INFO] SCRAPING STOCK MEDIA")
+        stock_media_json_path = scrape_stock_media(data_folder_path=VIDEO_SAVE_DIR,
+                                                   json_file_path = file_path,
+                                                   aspect_ratio = ASPECT_RATIO,
+                                                   score_threshold = IMG_SIMILARITY_THRESHOLD,
+                                                   api_key = GOOGLE_API_KEY,
+                                                   pixaray_api_key = PIXARAY_API_KEY)
+        print("[INFO] SCRAPING STOCK MEDIA COMPLETED")
+    else:
+        print("[INFO] SCRAPING STOCK MEDIA - DISABLED")
+
+    print("[INFO] TTS Started",end=' ')
 
     # Processing the script to remove the text and video cues
     processed_script = remove_enclosed_segments(result["script"])
+    processed_script = processed_script.replace('<>', '')
     # Audio gen
-    save_file_path = text_to_speech_file(text=processed_script, save_dir=AUDIO_DIR, ELEVENLABS_API_KEY=ELEVENLABS_API_KEY, AUDIO_SPEED=AUDIO_PACE)
+    if TTS_MODEL == 'GEMINI':
+        print('GEMINI')
+        try:
+            save_file_path = generate_audio(script=processed_script, output_dir=AUDIO_DIR, api_key=GOOGLE_API_KEY,voice='Umbriel')
+        except:
+            print('[ERROR] Failed to generate audio file - Trying AGAIN')
+            save_file_path = generate_audio(script=processed_script, output_dir=AUDIO_DIR, api_key=GOOGLE_API_KEY,voice='Umbriel')
+    else:
+        print('ELEVENLABS')
+        save_file_path = text_to_speech_file(text=processed_script, save_dir=AUDIO_DIR, ELEVENLABS_API_KEY=ELEVENLABS_API_KEY, AUDIO_SPEED=AUDIO_PACE) #eleven labs
     print("[INFO] TTS Completed")
+
+    print("[INFO] CALCULATING SCENE TIMINGS",end = ' ')
+    scene_timing_file = os.path.join(AUDIO_DIR, "scene_timings.json")
+    fetch_audio_timings(audio_file=save_file_path,script_file=file_path,api_key=ASSEMBLYAI_API_KEY,output_file=scene_timing_file)
+    print(' - Done')
 
     print("[INFO] VIDEO MERGING STARTED")
     video_path = os.path.join(VIDEO_SAVE_DIR, "merged_video.mp4")
