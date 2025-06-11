@@ -139,7 +139,7 @@ def crop_image(img, aspect_ratio: str) -> bool:
         print(f"An unexpected error occurred during image cropping: {e}")
         return False
 
-def image_generator(prompt_str, api_key, model='gemini-2.0-flash-preview-image-generation', output_filepath='gemini-native-image.png'):
+def image_generator(prompt_str, api_key, model='gemini-2.0-flash-preview-image-generation', output_filepath='gemini-native-image.png',aspect_ratio='16:9'):
     client = genai.Client(api_key=api_key)
     response = client.models.generate_content(
         model=model,
@@ -155,11 +155,11 @@ def image_generator(prompt_str, api_key, model='gemini-2.0-flash-preview-image-g
             print('')
         elif part.inline_data is not None:
             image = Image.open(BytesIO(part.inline_data.data))
-            image = crop_image(image, aspect_ratio='16:9')
+            image = crop_image(image, aspect_ratio=aspect_ratio)
             image.save(output_filepath)
 
 
-def generate_images(prompts, output_path, api_key, num_images=3, score_threshold=0.7):
+def generate_images(prompts, output_path, api_key, num_images=3, score_threshold=0.7, aspect_ratio='16:9'):
   output = {"script": prompts['script'], "image-paths": {}}
   image_count = 1
   for i, prompt in prompts['image-prompts'].items():
@@ -169,7 +169,7 @@ def generate_images(prompts, output_path, api_key, num_images=3, score_threshold
         img_created = False
         try:
             output_file = f"{output_path}/{image_count}.png"
-            image_generator(prompt_str=prompt, output_filepath=output_file, api_key=api_key)
+            image_generator(prompt_str=prompt, output_filepath=output_file, api_key=api_key,aspect_ratio=aspect_ratio)
             approve, score = image_prompt_similarity_score(image_file_path=output_file, target_prompt=prompt,api_key=api_key, score_threshold=score_threshold)
             img_iter = 0
             print(f"image #: {image_count}, img prompt #: {i}, score: {score}, image_iter: {img_iter}")

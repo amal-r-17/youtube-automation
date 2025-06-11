@@ -423,7 +423,7 @@ def generate_captions(input_path,output_path,model_path):
             add_text_outline=True,
             outline_color=(255, 255, 255),  # White outline for current word
             spoken_outline_color=(40, 40, 40),  # Dark gray outline for spoken
-            outline_thickness_factor=1.1,
+            outline_thickness_factor=1.15,
             caption_transition_duration_seconds=0.2,
             word_level_highlight=True
         )

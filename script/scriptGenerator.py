@@ -79,7 +79,7 @@ class YouTubeContentGenerator:
             raise ValueError(f"Unsupported LLM provider: {self.llm_provider}. " 
                            f"Supported providers: openai, grok, gemini, claude, ollama")
     
-    def generate_youtube_script(self, topic: str, context: str = "") -> str:
+    def generate_youtube_script(self, topic: str, context: str = "", time_unit: str = "minutes") -> str:
         """
         Generate an engaging YouTube script based on the provided topic.
         
@@ -100,7 +100,7 @@ class YouTubeContentGenerator:
                             - Divide this script into exactly {max_image_prompts} scenes, each approximately {segment_len} seconds of spoken content. Breaks should prioritize **natural narrative shifts** (e.g., change in subject, tone, or joke setup), but aim to stay close to the ~{segment_len}-second target for balance.
                             - The {max_image_prompts} scenes in the script must be separated by the symbol <>
                             - Don't add any text indicating scene index or youtube script
-                            - The script should be for a video that's approximately {max_minute} minutes long to allow for natural pacing, punchlines, and witty delivery.
+                            - The script should be for a video that's approximately {max_minute} {time_unit} long to allow for natural pacing, punchlines, and witty delivery.
                             - The **narrator's persona must be distinctively witty and sarcastic**. Think [MENTION A TYPE OF WIT/SARCASM OR A COMEDIC PERSONA, e.g., "dry and observational like a seasoned cynic," or "energetically sarcastic with a playful edge," or "darkly humorous and self-deprecating"]. Their commentary should be clever, perhaps a bit irreverent, but ultimately keep the audience hooked.
                             - Include a **strong, witty, and attention-grabbing hook** at the beginning. This should immediately establish the sarcastic tone and make viewers desperate to know what's next.
                             - The script must have a clear structure:
@@ -136,15 +136,15 @@ class YouTubeContentGenerator:
                 """
         
         script_prompt = PromptTemplate(
-            input_variables=["topic", "max_minute", "context","max_image_prompts","segment_len"],
+            input_variables=["topic", "max_minute", "context","max_image_prompts","segment_len","time_unit"],
             template=script_prompt_template
         )
         
         script_chain = LLMChain(llm=self.llm, prompt=script_prompt)
-        result = script_chain.run(topic=topic, max_minute=self.video_len, context=context,max_image_prompts=self.num_img_prompts,segment_len=self.segment_len)
+        result = script_chain.run(topic=topic, max_minute=self.video_len, context=context,max_image_prompts=self.num_img_prompts,segment_len=self.segment_len,time_unit=time_unit)
         return result.strip()
     
-    def generate_image_prompts(self, script: str, topic: str) -> Dict[str, str]:
+    def generate_image_prompts(self, script: str, topic: str,height,width,aspect_ratio) -> Dict[str, str]:
         section_prompt_template = """
         You are given a YouTube narration script for a scene. Your task is to:
     
@@ -202,9 +202,9 @@ class YouTubeContentGenerator:
         for index, scene in enumerate(scenes):
             resp = section_chain.run(scene=scene,
                                      topic=topic,
-                                     WIDTH=1280,
-                                     HEIGHT=720,
-                                     ASPECT_RATIO="16:9")
+                                     WIDTH=width,
+                                     HEIGHT=height,
+                                     ASPECT_RATIO=aspect_ratio)
             final_prompts[f'{index + 1}'] = resp
         # final_prompts = self.parse_image_prompts(final_prompts)
         return final_prompts

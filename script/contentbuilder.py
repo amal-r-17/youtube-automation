@@ -26,7 +26,7 @@ class ContentCreator:
             MAX_VIDEO_LENGTH=MAX_VIDEO_LENGTH, NUM_IMG_PROMPTS=NUM_IMG_PROMPTS, IMAGE_DIM=IMAGE_DIM, ASPECT_RATIO=ASPECT_RATIO
         )
     
-    def create_content(self, topic: str, context: str) -> Dict[str, Any]:
+    def create_content(self, topic: str, context: str,height,width,aspect_ratio,time_unit='minutes') -> Dict[str, Any]:
         """
         Generate YouTube content based on the provided topic.
         
@@ -37,10 +37,10 @@ class ContentCreator:
             Dict[str, Any]: A dictionary containing the script and image prompts
         """
         # Step 1: Generate the YouTube script
-        script = self.generator.generate_youtube_script(topic=topic, context=context)
+        script = self.generator.generate_youtube_script(topic=topic, context=context,time_unit=time_unit)
         
         # Step 2: Generate image prompts from the script
-        image_prompts = self.generator.generate_image_prompts(script=script,topic=topic)
+        image_prompts = self.generator.generate_image_prompts(script=script,topic=topic,height=height,width=width,aspect_ratio=aspect_ratio)
 
         # Step 3: Generate a Thumbnail from the script
         thumbnail_prompt = self.generator.generate_thumbnail_prompts(script)

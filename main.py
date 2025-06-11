@@ -2,7 +2,8 @@ import os, re
 import json
 from typing import Dict, Any, Optional
 from dotenv import load_dotenv
-
+import time
+import datetime
 load_dotenv()  # take environment variables
 from script.contentbuilder import ContentCreator
 from image_gen.image_gen import generate_images  # Gen images
@@ -19,6 +20,14 @@ from context_extract.topic_grounding import grounding_gemini
 def remove_enclosed_segments(text):
     return re.sub(r"\*\*\([^)]*\)\*\*", "", text)
 
+def calc_time(start):
+    end = time.time()
+    time_taken_seconds = end - start
+    time_delta = datetime.timedelta(seconds=time_taken_seconds)
+    minutes = int(time_delta.total_seconds() // 60)
+    seconds = int(time_delta.total_seconds() % 60)
+    formatted_time = f"{minutes:02d}:{seconds:02d}"
+    return formatted_time
 
 def main():
     load_dotenv()
@@ -52,7 +61,7 @@ def main():
     # TARGET_SIZE = (1280, 720) #(1920, 1080)
 
     # VIDEO PARAMS
-    MAX_LENTH_MINS = int(os.getenv("MAX_LENTH_MINS", 1))
+    MAX_LENGTH_MINS = float(os.getenv("MAX_LENGTH_MINS", 1))
     NUM_IMAGE_PROMPTS = int(os.getenv("NUM_IMAGE_PROMPTS", 10))
     NUM_IMAGES_PER_PROMPTS = int(os.getenv("NUM_IMAGES_PER_PROMPTS" ,2))
     TARGET_SIZE = [int(val) for val in os.getenv("VIDEO_DIMENSION", "1280,720").split(",")]
@@ -64,6 +73,7 @@ def main():
     # AUDIO 
     GENERATE_CAPTIONS = os.getenv("GENERATE_CAPTIONS", True)
     stock_media = os.getenv("INCLUDE_STOCK_MEDIA", True)
+    GENERATE_SHORTS = os.getenv("GENERATE_SHORTS", True)
     ADD_AVATAR = os.getenv("INCLUDE_AVATAR", True)
     AUDIO_PACE =  float(os.getenv("AUDIO_PACE", 1.1))
     TTS_MODEL = os.getenv("TTS_MODEL")
@@ -74,7 +84,7 @@ def main():
         llm_provider=llm_provider,
         api_key=api_key,
         model_name=model_name,
-        MAX_VIDEO_LENGTH=MAX_LENTH_MINS, NUM_IMG_PROMPTS=NUM_IMAGE_PROMPTS, IMAGE_DIM=TARGET_SIZE, ASPECT_RATIO=ASPECT_RATIO
+        MAX_VIDEO_LENGTH=MAX_LENGTH_MINS, NUM_IMG_PROMPTS=NUM_IMAGE_PROMPTS, IMAGE_DIM=TARGET_SIZE, ASPECT_RATIO=ASPECT_RATIO
     )
 
     # Get topic from command line arguments or use a default
@@ -87,6 +97,7 @@ def main():
 
     # Getting the context for the script generation by scrapping
     if search_web:
+        start = time.time()
         print(f'Scrapping {topic} content',end=' ')
         if CONTENT_SCRAPER_MODEL == 'GEMINI':
             print('with Gemini')
@@ -95,13 +106,18 @@ def main():
             print('with DuckDuckGo')
             scrapper = ContentSummarizer(min_len=20, api_key=GOOGLE_API_KEY)
             context = scrapper.run(topic=topic)
+        time_taken = calc_time(start)
+        print('Scraping content completed in', time_taken)
     else:
         print('Scraping content disabled')
         context = ""
 
     # Generate content
-    result = creator.create_content(topic, context=context)
-
+    print("Generating script ...")
+    start = time.time()
+    result = creator.create_content(topic, context=context,height=TARGET_SIZE[1],width=TARGET_SIZE[0],aspect_ratio=ASPECT_RATIO)
+    time_taken = calc_time(start)
+    print('Generating script completed in', time_taken)
     # Adding context to result
     result["context"] = context
     
@@ -135,24 +151,28 @@ def main():
     print(f"\nContent saved to: {file_path}")
 
     print("[INFO] Image Generation Started")
+    start = time.time()
     # Gen images
-    generate_images(result, IMAGE_DIR, api_key=GOOGLE_API_KEY, num_images=NUM_IMAGES_PER_PROMPTS, score_threshold=IMG_SIMILARITY_THRESHOLD)
-    print(f"[INFO] Image Generation Completed, saved to {IMAGE_DIR}")
+    generate_images(result, IMAGE_DIR, api_key=GOOGLE_API_KEY, num_images=NUM_IMAGES_PER_PROMPTS, score_threshold=IMG_SIMILARITY_THRESHOLD, aspect_ratio=ASPECT_RATIO)
+    time_taken = calc_time(start)
+    print(f"[INFO] Image Generation Completed in {time_taken}, saved to {IMAGE_DIR}")
 
     if stock_media == 'TRUE':
         print("[INFO] SCRAPING STOCK MEDIA")
+        start = time.time()
         stock_media_json_path = scrape_stock_media(data_folder_path=VIDEO_SAVE_DIR,
                                                    json_file_path = file_path,
                                                    aspect_ratio = ASPECT_RATIO,
                                                    score_threshold = IMG_SIMILARITY_THRESHOLD,
                                                    api_key = GOOGLE_API_KEY,
                                                    pixaray_api_key = PIXARAY_API_KEY)
-        print("[INFO] SCRAPING STOCK MEDIA COMPLETED")
+        time_taken = calc_time(start)
+        print("[INFO] SCRAPING STOCK MEDIA COMPLETED IN", time_taken)
     else:
         print("[INFO] SCRAPING STOCK MEDIA - DISABLED")
 
     print("[INFO] TTS Started",end=' ')
-
+    start = time.time()
     # Processing the script to remove the text and video cues
     processed_script = remove_enclosed_segments(result["script"])
     processed_script = processed_script.replace('<>', '')
@@ -167,32 +187,101 @@ def main():
     else:
         print('ELEVENLABS')
         save_file_path = text_to_speech_file(text=processed_script, save_dir=AUDIO_DIR, ELEVENLABS_API_KEY=ELEVENLABS_API_KEY, AUDIO_SPEED=AUDIO_PACE) #eleven labs
-    print("[INFO] TTS Completed")
+    time_taken = calc_time(start)
+    print(f"[INFO] TTS Completed in {time_taken}, saved to {save_file_path}")
 
     print("[INFO] CALCULATING SCENE TIMINGS",end = ' ')
+    start = time.time()
     scene_timing_file = os.path.join(AUDIO_DIR, "scene_timings.json")
     fetch_audio_timings(audio_file=save_file_path,script_file=file_path,api_key=ASSEMBLYAI_API_KEY,output_file=scene_timing_file)
-    print(' - Done')
+    time_taken = calc_time(start)
+    print(' - Completed in', time_taken)
 
     print("[INFO] VIDEO MERGING STARTED")
+    start = time.time()
     video_path = os.path.join(VIDEO_SAVE_DIR, "merged_video.mp4")
     create_video_from_images(IMAGE_DIR, save_file_path, video_path, TARGET_SIZE)
-    print("[INFO] VIDEO MERGING COMPLETED, saved to:",video_path)
+    time_taken = calc_time(start)
+    print(f"[INFO] VIDEO MERGING COMPLETED IN {time_taken}, saved to:",video_path)
 
     print("[INFO] ADDING AVATAR")
+    start = time.time()
     scale = 0.5
     avatar_video_path = os.path.join(VIDEO_SAVE_DIR, "avatar_video.mp4")
     add_avatar(audio_file=save_file_path, video_file=video_path, output_file=avatar_video_path, scale=scale)
-    print(f"[INFO] AVATAR ADDED TO VIDEO AT A SCALE OF {scale}, saved to:",avatar_video_path)
+    time_taken = calc_time(start)
+    print(f"[INFO] AVATAR ADDED TO VIDEO AT A SCALE OF {scale}, saved to: ",avatar_video_path, "Time taken: ",time_taken)
 
     output_path = os.path.join(VIDEO_SAVE_DIR, "final_video.mp4")
     print("[INFO] GENERATING CAPTIONS")
+    start = time.time()
     model_path = os.getenv("MODEL_PATH")
     generate_captions(avatar_video_path, output_path, model_path)
-    print("[INFO] CAPTIONS GENERATED")
+    time_taken = calc_time(start)
+    print("[INFO] CAPTIONS GENERATED IN", time_taken)
     print(f"[INFO] FINAL VIDEO COMPLETED, saved to: {output_path}")
 
+    if GENERATE_SHORTS == 'TRUE':
+        print("[INFO] GENERATING SHORTS")
+        start = time.time()
+        SHORTS_DIR = os.path.join(VIDEO_SAVE_DIR, "shorts")
+        os.makedirs(SAVE_DIR, exist_ok=True)
+        ASPECT_RATIO = "9:16"
+        NUM_IMAGES_PER_PROMPTS = 2
+        NUM_IMG_PROMPTS = 5
+        AUDIO_PACE = 1.2
+        MAX_VIDEO_LENGTH = 30
+        TARGET_SIZE = [720, 1280]
+        creator = ContentCreator(
+            llm_provider=llm_provider,
+            api_key=api_key,
+            model_name=model_name,
+            MAX_VIDEO_LENGTH=MAX_VIDEO_LENGTH, NUM_IMG_PROMPTS=NUM_IMG_PROMPTS, IMAGE_DIM=TARGET_SIZE, ASPECT_RATIO=ASPECT_RATIO
+        )
+        result = creator.create_content(topic, context=context, height=TARGET_SIZE[1], width=TARGET_SIZE[0],
+                                        aspect_ratio=ASPECT_RATIO,time_unit='seconds')
+        IMAGE_DIR = os.path.join(SHORTS_DIR, "images")
+        os.makedirs(IMAGE_DIR, exist_ok=True)
+
+        AUDIO_DIR = os.path.join(SHORTS_DIR, "audio")
+        os.makedirs(AUDIO_DIR, exist_ok=True)
+        filename = os.path.join(SHORTS_DIR, f"youtube_content_{topic.replace(' ', '_')[:20]}.json")
+        file_path = creator.save_to_json(result, filename)
+        generate_images(result, IMAGE_DIR, api_key=GOOGLE_API_KEY, num_images=NUM_IMAGES_PER_PROMPTS,
+                        score_threshold=IMG_SIMILARITY_THRESHOLD, aspect_ratio=ASPECT_RATIO)
+        processed_script = remove_enclosed_segments(result["script"])
+        processed_script = processed_script.replace('<>', '')
+        if TTS_MODEL == 'GEMINI':
+            try:
+                save_file_path = generate_audio(script=processed_script, output_dir=AUDIO_DIR, api_key=GOOGLE_API_KEY,
+                                                voice='Umbriel')
+            except:
+                print('[ERROR] Failed to generate audio file - Trying AGAIN')
+                save_file_path = generate_audio(script=processed_script, output_dir=AUDIO_DIR, api_key=GOOGLE_API_KEY,
+                                                voice='Umbriel')
+        else:
+            print('ELEVENLABS')
+            save_file_path = text_to_speech_file(text=processed_script, save_dir=AUDIO_DIR,
+                                                 ELEVENLABS_API_KEY=ELEVENLABS_API_KEY,
+                                                 AUDIO_SPEED=AUDIO_PACE)  # eleven labs
+        scene_timing_file = os.path.join(AUDIO_DIR, "scene_timings.json")
+        fetch_audio_timings(audio_file=save_file_path, script_file=file_path, api_key=ASSEMBLYAI_API_KEY,
+                            output_file=scene_timing_file)
+        video_path = os.path.join(SHORTS_DIR, "merged_video.mp4")
+        create_video_from_images(IMAGE_DIR, save_file_path, video_path, TARGET_SIZE)
+        avatar_video_path = os.path.join(SHORTS_DIR, "avatar_video.mp4")
+        add_avatar(audio_file=save_file_path, video_file=video_path, output_file=avatar_video_path, scale=scale)
+        output_path = os.path.join(VIDEO_SAVE_DIR, "shorts.mp4")
+        generate_captions(avatar_video_path, output_path, model_path)
+
+        time_taken = calc_time(start)
+        print("[INFO] SHORTS GENERATED IN", time_taken)
+    else:
+        print("[INFO] GENERATING SHORTS - DISABLED")
     return result
 
 if __name__ == "__main__":
+    master_start = time.time()
     main()
+    time_taken = calc_time(master_start)
+    print("-------------------[INFO] THE SCRIPT COMPLETED IN", time_taken)
