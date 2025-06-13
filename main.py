@@ -225,7 +225,7 @@ def main():
         print("[INFO] GENERATING SHORTS")
         start = time.time()
         SHORTS_DIR = os.path.join(VIDEO_SAVE_DIR, "shorts")
-        os.makedirs(SAVE_DIR, exist_ok=True)
+        os.makedirs(SHORTS_DIR, exist_ok=True)
         ASPECT_RATIO = "9:16"
         NUM_IMAGES_PER_PROMPTS = 2
         NUM_IMG_PROMPTS = 5
