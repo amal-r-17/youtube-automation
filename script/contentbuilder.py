@@ -56,7 +56,7 @@ class ContentCreator:
             "thumbnail-prompts": thumbnail_prompt,
             "meta_data": video_description
         }
-        print("Final result: ", result)
+        # print("Final result: ", result)
         # self.save_to_json(result=result, filename="sample.json")
         # exit()
         return result

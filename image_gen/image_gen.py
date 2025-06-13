@@ -1,13 +1,15 @@
 from google import genai
+from together import Together
 from google.genai import types
 from PIL import Image
 from io import BytesIO
-import json
+import requests
 import os
 import google.generativeai as gen_ai
 import io
 import numpy as np
 from numpy.linalg import norm
+from random import randint
 
 def load_image_data(image_path):
     """Loads an image from a file path and converts it to bytes."""
@@ -163,7 +165,7 @@ def generate_images(prompts, output_path, api_key, num_images=3, score_threshold
   output = {"script": prompts['script'], "image-paths": {}}
   image_count = 1
   for i, prompt in prompts['image-prompts'].items():
-      print("IMG PROMPT #:",i,"\nPROCESSING IMAGE: ", prompt)
+      print("IMG PROMPT #:",i)
       # prompt = prompt + "  in aspect ratio 16:9"
       for _ in range(num_images):
         img_created = False
@@ -186,4 +188,45 @@ def generate_images(prompts, output_path, api_key, num_images=3, score_threshold
         print("IMAGE SAVED to: ", output_file,"\n")
         output["image-paths"][f"{image_count}"] = output_file
         image_count+=1
-  return output
+  # return output
+
+def generate_images_flux(prompts, output_path, api_key, num_images=3, img_quality=4, aspect_ratio='16:9'):
+    output = {"script": prompts['script'], "image-paths": {}}
+    image_count = 1
+    client = Together(api_key=api_key)
+    width, height = 1280,720#1440, 816
+    if aspect_ratio == "9:16":
+        width, height = height,width
+    seed = randint(1,40)
+    for i, prompt in prompts['image-prompts'].items():
+        print("IMG PROMPT #:", i)
+        for _ in range(num_images):
+            seed = randint(1,40)
+            try:
+                output_file = f"{output_path}/{image_count}.png"
+                try:
+                    response = client.images.generate(
+                        prompt=prompt, model="black-forest-labs/FLUX.1-schnell-Free",
+                        width=width, height=height, steps=img_quality, seed=seed,
+                    )
+                    image_url = response.data[0].url
+                    img_data = requests.get(image_url).content
+                    with open(output_file, "wb") as f:
+                        f.write(img_data)
+                except:
+                    seed = randint(1, 40)
+                    response = client.images.generate(
+                        prompt=prompt, model="black-forest-labs/FLUX.1-schnell-Free",
+                        width=width, height=height, steps=img_quality, seed=seed,
+                    )
+                    image_url = response.data[0].url
+                    img_data = requests.get(image_url).content
+                    with open(output_file, "wb") as f:
+                        f.write(img_data)
+            except Exception as e:
+                print("ERROR OCCURED: ", e)
+                output_file = "No-image"
+            print("IMAGE SAVED to: ", output_file, "\n")
+            output["image-paths"][f"{image_count}"] = output_file
+            image_count += 1
+    # return output

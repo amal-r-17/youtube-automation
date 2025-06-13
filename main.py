@@ -6,7 +6,7 @@ import time
 import datetime
 load_dotenv()  # take environment variables
 from script.contentbuilder import ContentCreator
-from image_gen.image_gen import generate_images  # Gen images
+from image_gen.image_gen import generate_images,generate_images_flux  # Gen images
 from audio_gen.audio_generator import text_to_speech_file
 from audio_gen.audio_generator_gemini import generate_audio
 from video_gen.video_generator import create_video_from_images
@@ -51,9 +51,10 @@ def main():
     # ELEVEN LABS API KEY
     ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
     # IMAGE GEN API KEY
-    GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+    GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY")
     PIXARAY_API_KEY = os.getenv("PIXARAY_API_KEY")
     ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY")
+    TOGETHER_AI_API_KEY = os.environ["TOGETHER_AI_API_KEY"]
 
     SAVE_DIR = os.getenv("SAVE_DIR")
     os.makedirs(SAVE_DIR, exist_ok=True)
@@ -77,6 +78,7 @@ def main():
     ADD_AVATAR = os.getenv("INCLUDE_AVATAR", True)
     AUDIO_PACE =  float(os.getenv("AUDIO_PACE", 1.1))
     TTS_MODEL = os.getenv("TTS_MODEL")
+    IMG_MODEL = os.getenv("IMG_MODEL")
     CONTENT_SCRAPER_MODEL = os.getenv("CONTENT_SCRAPER_MODEL")
 
     # Instantiate the content creator
@@ -121,7 +123,7 @@ def main():
     # Adding context to result
     result["context"] = context
     
-    print("result: ", result)
+    # print("result: ", result)
 
     title = "_".join(result["meta_data"]["title_suggestions"][0].split())
 
@@ -137,23 +139,27 @@ def main():
     os.makedirs(AUDIO_DIR, exist_ok=True)
 
     # Print the result
-    print("\n=== Generated Script ===")
-    print(result["script"])
-
-    print("\n=== Generated Image Prompts ===")
-    for section_num, prompt in result["image-prompts"].items():
-        print(f"Section {section_num}:")
-        print(prompt)
+    # print("\n=== Generated Script ===")
+    # print(result["script"])
+    #
+    # print("\n=== Generated Image Prompts ===")
+    # for section_num, prompt in result["image-prompts"].items():
+    #     print(f"Section {section_num}:")
+    #     print(prompt)
 
     # Save to file
     filename = os.path.join(VIDEO_SAVE_DIR, f"youtube_content_{topic.replace(' ', '_')[:20]}.json")
     file_path = creator.save_to_json(result, filename)
-    print(f"\nContent saved to: {file_path}")
+    print(f"\nContent saved to: {file_path}\n")
 
-    print("[INFO] Image Generation Started")
+    print("[INFO] Image Generation Started -",IMG_MODEL)
     start = time.time()
     # Gen images
-    generate_images(result, IMAGE_DIR, api_key=GOOGLE_API_KEY, num_images=NUM_IMAGES_PER_PROMPTS, score_threshold=IMG_SIMILARITY_THRESHOLD, aspect_ratio=ASPECT_RATIO)
+    if IMG_MODEL == 'GEMINI':
+        generate_images(result, IMAGE_DIR, api_key=GOOGLE_API_KEY, num_images=NUM_IMAGES_PER_PROMPTS, score_threshold=IMG_SIMILARITY_THRESHOLD, aspect_ratio=ASPECT_RATIO)
+    else:
+        # img quality 1-4(time tradeoff)
+        generate_images_flux(result, IMAGE_DIR, api_key=TOGETHER_AI_API_KEY, num_images=NUM_IMAGES_PER_PROMPTS, img_quality=4, aspect_ratio=ASPECT_RATIO)
     time_taken = calc_time(start)
     print(f"[INFO] Image Generation Completed in {time_taken}, saved to {IMAGE_DIR}")
 
@@ -171,21 +177,19 @@ def main():
     else:
         print("[INFO] SCRAPING STOCK MEDIA - DISABLED")
 
-    print("[INFO] TTS Started",end=' ')
+    print("[INFO] TTS Started",TTS_MODEL)
     start = time.time()
     # Processing the script to remove the text and video cues
     processed_script = remove_enclosed_segments(result["script"])
     processed_script = processed_script.replace('<>', '')
     # Audio gen
     if TTS_MODEL == 'GEMINI':
-        print('GEMINI')
         try:
             save_file_path = generate_audio(script=processed_script, output_dir=AUDIO_DIR, api_key=GOOGLE_API_KEY,voice='Umbriel')
         except:
             print('[ERROR] Failed to generate audio file - Trying AGAIN')
             save_file_path = generate_audio(script=processed_script, output_dir=AUDIO_DIR, api_key=GOOGLE_API_KEY,voice='Umbriel')
     else:
-        print('ELEVENLABS')
         save_file_path = text_to_speech_file(text=processed_script, save_dir=AUDIO_DIR, ELEVENLABS_API_KEY=ELEVENLABS_API_KEY, AUDIO_SPEED=AUDIO_PACE) #eleven labs
     time_taken = calc_time(start)
     print(f"[INFO] TTS Completed in {time_taken}, saved to {save_file_path}")
@@ -247,8 +251,12 @@ def main():
         os.makedirs(AUDIO_DIR, exist_ok=True)
         filename = os.path.join(SHORTS_DIR, f"youtube_content_{topic.replace(' ', '_')[:20]}.json")
         file_path = creator.save_to_json(result, filename)
-        generate_images(result, IMAGE_DIR, api_key=GOOGLE_API_KEY, num_images=NUM_IMAGES_PER_PROMPTS,
-                        score_threshold=IMG_SIMILARITY_THRESHOLD, aspect_ratio=ASPECT_RATIO)
+        if IMG_MODEL == 'GEMINI':
+            generate_images(result, IMAGE_DIR, api_key=GOOGLE_API_KEY, num_images=NUM_IMAGES_PER_PROMPTS,
+                            score_threshold=IMG_SIMILARITY_THRESHOLD, aspect_ratio=ASPECT_RATIO)
+        else:
+            generate_images_flux(result, IMAGE_DIR, api_key=TOGETHER_AI_API_KEY, num_images=NUM_IMAGES_PER_PROMPTS,
+                                 img_quality=4, aspect_ratio=ASPECT_RATIO)
         processed_script = remove_enclosed_segments(result["script"])
         processed_script = processed_script.replace('<>', '')
         if TTS_MODEL == 'GEMINI':
@@ -260,7 +268,6 @@ def main():
                 save_file_path = generate_audio(script=processed_script, output_dir=AUDIO_DIR, api_key=GOOGLE_API_KEY,
                                                 voice='Umbriel')
         else:
-            print('ELEVENLABS')
             save_file_path = text_to_speech_file(text=processed_script, save_dir=AUDIO_DIR,
                                                  ELEVENLABS_API_KEY=ELEVENLABS_API_KEY,
                                                  AUDIO_SPEED=AUDIO_PACE)  # eleven labs
