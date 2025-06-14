@@ -9,6 +9,7 @@ import google.generativeai as gen_ai
 import io
 import numpy as np
 from numpy.linalg import norm
+import json
 from random import randint
 
 def load_image_data(image_path):
@@ -166,7 +167,7 @@ def generate_images(prompts, output_path, api_key, num_images=3, score_threshold
   image_count = 1
   for i, prompt in prompts['image-prompts'].items():
       print("IMG PROMPT #:",i)
-      # prompt = prompt + "  in aspect ratio 16:9"
+      output_files = []
       for _ in range(num_images):
         img_created = False
         try:
@@ -184,11 +185,15 @@ def generate_images(prompts, output_path, api_key, num_images=3, score_threshold
             print("ERROR OCCURED: ", e)
             if img_created:
                 print("IMAGE ALREADY CREATED for img prompt #:", image_count, "score:", score)
-            output_file = "No-image"
+            else:
+                output_file = "No-image"
         print("IMAGE SAVED to: ", output_file,"\n")
-        output["image-paths"][f"{image_count}"] = output_file
+        output_files.append(output_file)
         image_count+=1
-  # return output
+      output["image-paths"][f"img_prompt_{i}"] = output_files
+  output_file = f"{output_path}/image_metadata.json"
+  json.dump(output, open(output_file, "w"))
+  return output_file
 
 def generate_images_flux(prompts, output_path, api_key, num_images=3, img_quality=4, aspect_ratio='16:9'):
     output = {"script": prompts['script'], "image-paths": {}}
@@ -200,6 +205,7 @@ def generate_images_flux(prompts, output_path, api_key, num_images=3, img_qualit
     seed = randint(1,40)
     for i, prompt in prompts['image-prompts'].items():
         print("IMG PROMPT #:", i)
+        output_files = []
         for _ in range(num_images):
             seed = randint(1,40)
             try:
@@ -227,6 +233,9 @@ def generate_images_flux(prompts, output_path, api_key, num_images=3, img_qualit
                 print("ERROR OCCURED: ", e)
                 output_file = "No-image"
             print("IMAGE SAVED to: ", output_file, "\n")
-            output["image-paths"][f"{image_count}"] = output_file
+            output_files.append(output_file)
             image_count += 1
-    # return output
+        output["image-paths"][f"img_prompt_{i}"] = output_files
+    output_file = f"{output_path}/image_metadata.json"
+    json.dump(output, open(output_file, "w"))
+    return output_file

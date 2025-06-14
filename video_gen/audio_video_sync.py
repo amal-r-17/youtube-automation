@@ -99,3 +99,29 @@ def fetch_audio_timings(audio_file,script_file,api_key,output_file):
     scene_timings = create_scene_timings(script_processed,subtitles)
     scene_timings = adjust_scene_timings(scene_timings,subtitles)
     json.dump(scene_timings, open(output_file, "w"))
+
+def calculate_media_timings(scene_timing_file,img_metadata,output_file):
+    scene_timings = json.load(open(scene_timing_file))
+    image_metadata = json.load(open(img_metadata))
+    image_durations = []
+    for scene in scene_timings:
+        scene_start = scene['start_time']
+        scene_end = scene['end_time']
+        start_minutes, start_seconds = map(int, scene_start.split(':'))
+        end_minutes, end_seconds = map(int, scene_end.split(':'))
+        time_seconds = (end_minutes * 60 + end_seconds) - (start_minutes * 60 + start_seconds)
+        img_paths = image_metadata['image-paths'][f'img_prompt_{scene['index']}']
+        img_paths = [path for path in img_paths if path != 'No-image']
+        image_duration = time_seconds / len(img_paths)
+        for img_path in img_paths:
+            image_timing = {
+                'img_index': int(img_path.split('/')[-1].split('.')[0]),
+                'scene_index': scene['index'],
+                'scene': scene['text'],
+                'image_path': img_path,
+                'image_duration': image_duration,
+            }
+            image_durations.append(image_timing)
+    diff_to_adjust = (end_minutes * 60 + end_seconds) - sum([img['image_duration'] for img in image_durations])
+    image_durations[-1]['image_duration'] += diff_to_adjust
+    json.dump(scene_timings, open(output_file, "w"))
