@@ -1,6 +1,6 @@
 import os, json
 import re
-import ast
+import ast, time
 from typing import Dict, List, Optional, Tuple
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
@@ -254,12 +254,24 @@ class YouTubeContentGenerator:
         section_chain = LLMChain(llm=self.llm, prompt=section_prompt)
         final_prompts = {}
         for index, scene in enumerate(scenes):
-            resp = section_chain.run(scene=scene,
-                                     topic=topic,
-                                     WIDTH=width,
-                                     HEIGHT=height,
-                                     ASPECT_RATIO=aspect_ratio)
-            final_prompts[f'{index + 1}'] = resp
+            sucess = False
+            while not sucess:
+                try:
+                    resp = section_chain.run(scene=scene,
+                                            topic=topic,
+                                            WIDTH=width,
+                                            HEIGHT=height,
+                                            ASPECT_RATIO=aspect_ratio)
+                    final_prompts[f'{index + 1}'] = resp
+                    print("result: ", resp)
+                    sucess = True
+                except Exception as e:
+                    time.sleep(60)
+                    print("RATE LIMITING CONDITION REACHED FOR RPM")
+                    print("WAITING FOR 60 seconds!!!")
+                    sucess = False
+
+            #time.sleep(5)
         # final_prompts = self.parse_image_prompts(final_prompts)
         return final_prompts
         
