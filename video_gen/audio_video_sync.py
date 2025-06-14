@@ -124,4 +124,4 @@ def calculate_media_timings(scene_timing_file,img_metadata,output_file):
             image_durations.append(image_timing)
     diff_to_adjust = (end_minutes * 60 + end_seconds) - sum([img['image_duration'] for img in image_durations])
     image_durations[-1]['image_duration'] += diff_to_adjust
-    json.dump(scene_timings, open(output_file, "w"))
+    json.dump(image_durations, open(output_file, "w"))
