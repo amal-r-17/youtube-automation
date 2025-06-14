@@ -10,7 +10,7 @@ class ContentCreator:
     Generates scripts and image prompts and returns them in a structured format.
     """
     
-    def __init__(self, llm_provider: str = "openai", api_key: Optional[str] = None, model_name: Optional[str] = None, MAX_VIDEO_LENGTH=1, NUM_IMG_PROMPTS=10, IMAGE_DIM=[1280, 720], ASPECT_RATIO="16:9"):
+    def __init__(self, llm_provider: str = "openai", api_key: Optional[str] = None, model_name: Optional[str] = None, MAX_VIDEO_LENGTH=1, NUM_IMG_PROMPTS=10, IMAGE_DIM=[1280, 720], ASPECT_RATIO="16:9", SHORTS=False):
         """
         Initialize the ContentCreator with specified LLM provider.
         
@@ -23,9 +23,10 @@ class ContentCreator:
             llm_provider=llm_provider, 
             api_key=api_key,
             model_name=model_name,
-            MAX_VIDEO_LENGTH=MAX_VIDEO_LENGTH, NUM_IMG_PROMPTS=NUM_IMG_PROMPTS, IMAGE_DIM=IMAGE_DIM, ASPECT_RATIO=ASPECT_RATIO
+            MAX_VIDEO_LENGTH=MAX_VIDEO_LENGTH, NUM_IMG_PROMPTS=NUM_IMG_PROMPTS, IMAGE_DIM=IMAGE_DIM, ASPECT_RATIO=ASPECT_RATIO,
+            SHORTS=SHORTS
         )
-    
+        self.shorts = SHORTS
     def create_content(self, topic: str, context: str,height,width,aspect_ratio,time_unit='minutes') -> Dict[str, Any]:
         """
         Generate YouTube content based on the provided topic.
@@ -39,12 +40,13 @@ class ContentCreator:
         # Step 1: Generate the YouTube script
         script = self.generator.generate_youtube_script(topic=topic, context=context,time_unit=time_unit)
         
+        print("GENERATED SCRIPT: ", script)
         # Step 2: Generate image prompts from the script
         image_prompts = self.generator.generate_image_prompts(script=script,topic=topic,height=height,width=width,aspect_ratio=aspect_ratio)
-
+        print("IMG prompts: ", image_prompts)
         # Step 3: Generate a Thumbnail from the script
         thumbnail_prompt = self.generator.generate_thumbnail_prompts(script)
-
+        print("thumbnail_prompt: ", image_prompts)
         # Step 4: Generate a youtube video description
         video_description = self.generator.generate_youtube_description(script=script, topic=topic)
 

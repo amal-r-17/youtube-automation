@@ -21,7 +21,7 @@ class YouTubeContentGenerator:
     2. Break down a script into sections and generate detailed image prompts for each section
     """
     
-    def __init__(self, llm_provider: str = "openai", api_key: Optional[str] = None, model_name: Optional[str] = None, MAX_VIDEO_LENGTH = 1,      NUM_IMG_PROMPTS=2, IMAGE_DIM=[1280,720], ASPECT_RATIO="16:9"):
+    def __init__(self, llm_provider: str = "openai", api_key: Optional[str] = None, model_name: Optional[str] = None, MAX_VIDEO_LENGTH = 1,      NUM_IMG_PROMPTS=2, IMAGE_DIM=[1280,720], ASPECT_RATIO="16:9", SHORTS=False):
         """
         Initialize the YouTubeContentGenerator with a specific LLM provider.
         
@@ -40,6 +40,7 @@ class YouTubeContentGenerator:
         self.segment_len = round((self.video_len*60)/self.num_img_prompts)
         self.IMAGE_DIM = IMAGE_DIM
         self.ASPECT_RATIO = ASPECT_RATIO
+        self.SHORTS = SHORTS
 
         
     def _initialize_llm(self):
@@ -135,9 +136,62 @@ class YouTubeContentGenerator:
                             YOUTUBE SCRIPT:
                 """
         
+        shorts_prompt_template = """Create an ultra-engaging, binge-worthy YouTube Shorts script on the following topic:
+                                        TOPIC: {topic}
+                                        CONTEXT (if available): {context}
+                                        Note: Use the provided context to inform your script with current, relevant information. If context is provided, prioritize these details and weave them naturally into your narrative. If no context is provided, rely on your existing knowledge to create compelling content.
+                                        Requirements:
+
+                                        Create a script for exactly {max_minute} {time_unit} of spoken content
+                                        Divide this script into exactly {max_image_prompts} scenes, each approximately {segment_len} seconds of spoken content
+                                        The {max_image_prompts} scenes must be separated by the symbol <>
+                                        No scene numbers, labels, or structural indicators - just pure spoken dialogue
+
+                                        Shorts-Specific Structure:
+
+                                        0-3 seconds: INSTANT HOOK - An attention-grabbing statement that immediately establishes intrigue. Use formats like "You won't believe what happens when..." or "Everyone gets this wrong about..." or "The thing nobody tells you about..."
+                                        3-{duration-10} seconds: RAPID VALUE DELIVERY - Pack maximum insights, revelations, or entertainment into the middle section with rapid-fire, punchy delivery
+                                        Final {duration-10}-{duration} seconds: PAYOFF + ENGAGEMENT BAIT - Deliver the promised revelation and include a strong engagement hook (comment bait, follow request, or teaser for next video)
+
+                                        Narrator Persona:
+
+                                        Maintain the distinctively witty and sarcastic tone from the original prompt
+                                        Adapt the delivery to be more punchy and rapid-fire for shorts format
+                                        Include 2-3 micro "spike moments" - brief, highly memorable lines that viewers will want to replay or share
+
+                                        Shorts Optimization Elements:
+
+                                        Hook Recycling: Subtly restate your main promise 2-3 times throughout to catch viewers who tune in mid-video
+                                        Comment Bait: Include 1-2 controversial or thought-provoking statements that naturally invite responses
+                                        Completion Drive: Structure content so viewers feel compelled to watch until the end
+                                        Shareability: Include at least one quotable, shareable moment that viewers will want to send to friends
+
+                                        Content Integration:
+
+                                        When context is available: Seamlessly blend current information with your rapid-fire narrative style, using fresh examples and recent developments
+                                        When context is not available: Focus on universally relatable aspects that don't require recent updates
+
+                                        Critical Restrictions:
+
+                                        ABSOLUTELY NO technical directions like [PAUSE], [CUT TO], [SOUND EFFECT], [VISUAL], or any bracketed instructions
+                                        No structural labels like "Hook:", "Main Content:", "Conclusion:"
+                                        No meta-commentary about the script structure
+                                        Start immediately with the opening hook and flow seamlessly to the end
+                                        The script must be one continuous monologue ready to be spoken directly
+
+                                        Engagement Elements:
+
+                                        Include natural moments for visual emphasis (without explicitly calling them out)
+                                        Build in rhythm and pacing that matches the high-energy shorts format
+                                        End with a witty, character-driven call-to-action that feels authentic to your sarcastic persona
+
+                                        Output: Pure spoken dialogue only - a continuous {duration}-second monologue that could be recorded immediately without any additional formatting or instructions.
+                                        YOUTUBE SHORTS SCRIPT:
+            """
+        
         script_prompt = PromptTemplate(
             input_variables=["topic", "max_minute", "context","max_image_prompts","segment_len","time_unit"],
-            template=script_prompt_template
+            template=script_prompt_template if not self.SHORTS else shorts_prompt_template
         )
         
         script_chain = LLMChain(llm=self.llm, prompt=script_prompt)
