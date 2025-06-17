@@ -184,11 +184,12 @@ def main():
     processed_script = processed_script.replace('<>', '')
     # Audio gen
     if TTS_MODEL == 'GEMINI':
+        voice = 'Sulafat'
         try:
-            save_file_path = generate_audio(script=processed_script, output_dir=AUDIO_DIR, api_key=GOOGLE_API_KEY,voice='Umbriel')
+            save_file_path = generate_audio(script=processed_script, output_dir=AUDIO_DIR, api_key=GOOGLE_API_KEY,voice=voice)
         except:
             print('[ERROR] Failed to generate audio file - Trying AGAIN')
-            save_file_path = generate_audio(script=processed_script, output_dir=AUDIO_DIR, api_key=GOOGLE_API_KEY,voice='Umbriel')
+            save_file_path = generate_audio(script=processed_script, output_dir=AUDIO_DIR, api_key=GOOGLE_API_KEY,voice=voice)
     else:
         save_file_path = text_to_speech_file(text=processed_script, save_dir=AUDIO_DIR, ELEVENLABS_API_KEY=ELEVENLABS_API_KEY, AUDIO_SPEED=AUDIO_PACE) #eleven labs
     time_taken = calc_time(start)
@@ -206,7 +207,7 @@ def main():
     print("[INFO] VIDEO MERGING STARTED")
     start = time.time()
     video_path = os.path.join(VIDEO_SAVE_DIR, "merged_video.mp4")
-    create_video_from_images(IMAGE_DIR, save_file_path, video_path, TARGET_SIZE)
+    create_video_from_images(img_timing_file,IMAGE_DIR, save_file_path, video_path, TARGET_SIZE)
     time_taken = calc_time(start)
     print(f"[INFO] VIDEO MERGING COMPLETED IN {time_taken}, saved to:",video_path)
 

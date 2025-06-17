@@ -56,6 +56,10 @@ def create_scene_timings(script_processed,subtitles):
     for i, scene in enumerate(scenes):
         scene_timing = {}
         words_scene = scene.split(' ')
+        scene_timing = {
+            "index": i + 1,
+            "text": scene
+        }
         part_of_scene = False
         for subtitle in subtitles:
             if subtitle["index"] > last_subtitle_index:
@@ -66,17 +70,23 @@ def create_scene_timings(script_processed,subtitles):
                     # part of scene
                     if part_of_scene == False:
                         part_of_scene = True
-                        scene_timing = {
-                            "index": i + 1,
-                            "text": scene,
-                            "start_time": subtitle['start_time']
-                        }
+                        scene_timing["start_time"] = subtitle['start_time']
                 if part_of_scene == True and len([word for word in words_subtitle if word in words_scene]) / len(words_subtitle) <= 0.6:
                     part_of_scene = False
                     scene_timing['end_time'] = subtitle['start_time']
                     last_subtitle_index = subtitle['index'] - 1
                     break
+        if 'start_time' not in scene_timing:
+            scene_timing['start_time'] = last_scene_timing['end_time']
+            start_minutes, start_seconds = map(int, scene_timing['start_time'].split(':'))
+            start_seconds += 3 #default display for 3 seconds if timings are not generated
+            start_minutes += start_seconds // 60
+            start_seconds = start_seconds % 60
+            start_seconds = str(start_seconds).zfill(2)
+            start_minutes = str(start_minutes).zfill(2)
+            scene_timing['end_time'] = f'{start_minutes}:{start_seconds}'
         scene_timings.append(scene_timing)
+        last_scene_timing = scene_timing
     return scene_timings
 
 def adjust_scene_timings(scene_timings,subtitles):
