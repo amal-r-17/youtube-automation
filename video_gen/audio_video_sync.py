@@ -56,6 +56,10 @@ def create_scene_timings(script_processed,subtitles):
     for i, scene in enumerate(scenes):
         scene_timing = {}
         words_scene = scene.split(' ')
+        scene_timing = {
+            "index": i + 1,
+            "text": scene
+        }
         part_of_scene = False
         for subtitle in subtitles:
             if subtitle["index"] > last_subtitle_index:
@@ -66,17 +70,23 @@ def create_scene_timings(script_processed,subtitles):
                     # part of scene
                     if part_of_scene == False:
                         part_of_scene = True
-                        scene_timing = {
-                            "index": i + 1,
-                            "text": scene,
-                            "start_time": subtitle['start_time']
-                        }
+                        scene_timing["start_time"] = subtitle['start_time']
                 if part_of_scene == True and len([word for word in words_subtitle if word in words_scene]) / len(words_subtitle) <= 0.6:
                     part_of_scene = False
                     scene_timing['end_time'] = subtitle['start_time']
                     last_subtitle_index = subtitle['index'] - 1
                     break
+        if 'start_time' not in scene_timing:
+            scene_timing['start_time'] = last_scene_timing['end_time']
+            start_minutes, start_seconds = map(int, scene_timing['start_time'].split(':'))
+            start_seconds += 3 #default display for 3 seconds if timings are not generated
+            start_minutes += start_seconds // 60
+            start_seconds = start_seconds % 60
+            start_seconds = str(start_seconds).zfill(2)
+            start_minutes = str(start_minutes).zfill(2)
+            scene_timing['end_time'] = f'{start_minutes}:{start_seconds}'
         scene_timings.append(scene_timing)
+        last_scene_timing = scene_timing
     return scene_timings
 
 def adjust_scene_timings(scene_timings,subtitles):
@@ -99,3 +109,29 @@ def fetch_audio_timings(audio_file,script_file,api_key,output_file):
     scene_timings = create_scene_timings(script_processed,subtitles)
     scene_timings = adjust_scene_timings(scene_timings,subtitles)
     json.dump(scene_timings, open(output_file, "w"))
+
+def calculate_media_timings(scene_timing_file,img_metadata,output_file):
+    scene_timings = json.load(open(scene_timing_file))
+    image_metadata = json.load(open(img_metadata))
+    image_durations = []
+    for scene in scene_timings:
+        scene_start = scene['start_time']
+        scene_end = scene['end_time']
+        start_minutes, start_seconds = map(int, scene_start.split(':'))
+        end_minutes, end_seconds = map(int, scene_end.split(':'))
+        time_seconds = (end_minutes * 60 + end_seconds) - (start_minutes * 60 + start_seconds)
+        img_paths = image_metadata['image-paths'][f'img_prompt_{scene['index']}']
+        img_paths = [path for path in img_paths if path != 'No-image']
+        image_duration = time_seconds / len(img_paths)
+        for img_path in img_paths:
+            image_timing = {
+                'img_index': int(img_path.split('/')[-1].split('.')[0]),
+                'scene_index': scene['index'],
+                'scene': scene['text'],
+                'image_path': img_path,
+                'image_duration': image_duration,
+            }
+            image_durations.append(image_timing)
+    diff_to_adjust = (end_minutes * 60 + end_seconds) - sum([img['image_duration'] for img in image_durations])
+    image_durations[-1]['image_duration'] += diff_to_adjust
+    json.dump(image_durations, open(output_file, "w"))

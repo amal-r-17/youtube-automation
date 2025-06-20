@@ -12,7 +12,7 @@ from audio_gen.audio_generator_gemini import generate_audio
 from video_gen.video_generator import create_video_from_images
 from video_gen.caption_generator import generate_captions
 from video_gen.avatar import add_avatar
-from video_gen.audio_video_sync import fetch_audio_timings
+from video_gen.audio_video_sync import fetch_audio_timings,calculate_media_timings
 from context_extract.Scrapper import ContentSummarizer
 from stock_media.stock_media_scrapper import scrape_stock_media
 from context_extract.topic_grounding import grounding_gemini
@@ -156,10 +156,10 @@ def main():
     start = time.time()
     # Gen images
     if IMG_MODEL == 'GEMINI':
-        generate_images(result, IMAGE_DIR, api_key=GOOGLE_API_KEY, num_images=NUM_IMAGES_PER_PROMPTS, score_threshold=IMG_SIMILARITY_THRESHOLD, aspect_ratio=ASPECT_RATIO)
+        img_metadata_file = generate_images(result, IMAGE_DIR, api_key=GOOGLE_API_KEY, num_images=NUM_IMAGES_PER_PROMPTS, score_threshold=IMG_SIMILARITY_THRESHOLD, aspect_ratio=ASPECT_RATIO)
     else:
         # img quality 1-4(time tradeoff)
-        generate_images_flux(result, IMAGE_DIR, api_key=TOGETHER_AI_API_KEY, num_images=NUM_IMAGES_PER_PROMPTS, img_quality=4, aspect_ratio=ASPECT_RATIO)
+        img_metadata_file = generate_images_flux(result, IMAGE_DIR, api_key=TOGETHER_AI_API_KEY, num_images=NUM_IMAGES_PER_PROMPTS, img_quality=4, aspect_ratio=ASPECT_RATIO)
     time_taken = calc_time(start)
     print(f"[INFO] Image Generation Completed in {time_taken}, saved to {IMAGE_DIR}")
 
@@ -184,27 +184,30 @@ def main():
     processed_script = processed_script.replace('<>', '')
     # Audio gen
     if TTS_MODEL == 'GEMINI':
+        voice = 'Sulafat'
         try:
-            save_file_path = generate_audio(script=processed_script, output_dir=AUDIO_DIR, api_key=GOOGLE_API_KEY,voice='Umbriel')
+            save_file_path = generate_audio(script=processed_script, output_dir=AUDIO_DIR, api_key=GOOGLE_API_KEY,voice=voice)
         except:
             print('[ERROR] Failed to generate audio file - Trying AGAIN')
-            save_file_path = generate_audio(script=processed_script, output_dir=AUDIO_DIR, api_key=GOOGLE_API_KEY,voice='Umbriel')
+            save_file_path = generate_audio(script=processed_script, output_dir=AUDIO_DIR, api_key=GOOGLE_API_KEY,voice=voice)
     else:
         save_file_path = text_to_speech_file(text=processed_script, save_dir=AUDIO_DIR, ELEVENLABS_API_KEY=ELEVENLABS_API_KEY, AUDIO_SPEED=AUDIO_PACE) #eleven labs
     time_taken = calc_time(start)
     print(f"[INFO] TTS Completed in {time_taken}, saved to {save_file_path}")
 
-    print("[INFO] CALCULATING SCENE TIMINGS",end = ' ')
+    print("[INFO] CALCULATING SCENE and IMAGE TIMINGS",end = ' ')
     start = time.time()
     scene_timing_file = os.path.join(AUDIO_DIR, "scene_timings.json")
     fetch_audio_timings(audio_file=save_file_path,script_file=file_path,api_key=ASSEMBLYAI_API_KEY,output_file=scene_timing_file)
+    img_timing_file = os.path.join(AUDIO_DIR, "img_timings.json")
+    calculate_media_timings(scene_timing_file=scene_timing_file, img_metadata=img_metadata_file, output_file=img_timing_file)
     time_taken = calc_time(start)
     print(' - Completed in', time_taken)
 
     print("[INFO] VIDEO MERGING STARTED")
     start = time.time()
     video_path = os.path.join(VIDEO_SAVE_DIR, "merged_video.mp4")
-    create_video_from_images(IMAGE_DIR, save_file_path, video_path, TARGET_SIZE)
+    create_video_from_images(img_timing_file,IMAGE_DIR, save_file_path, video_path, TARGET_SIZE)
     time_taken = calc_time(start)
     print(f"[INFO] VIDEO MERGING COMPLETED IN {time_taken}, saved to:",video_path)
 
@@ -252,10 +255,10 @@ def main():
         filename = os.path.join(SHORTS_DIR, f"youtube_content_{topic.replace(' ', '_')[:20]}.json")
         file_path = creator.save_to_json(result, filename)
         if IMG_MODEL == 'GEMINI':
-            generate_images(result, IMAGE_DIR, api_key=GOOGLE_API_KEY, num_images=NUM_IMAGES_PER_PROMPTS,
+            img_metadata_file = generate_images(result, IMAGE_DIR, api_key=GOOGLE_API_KEY, num_images=NUM_IMAGES_PER_PROMPTS,
                             score_threshold=IMG_SIMILARITY_THRESHOLD, aspect_ratio=ASPECT_RATIO)
         else:
-            generate_images_flux(result, IMAGE_DIR, api_key=TOGETHER_AI_API_KEY, num_images=NUM_IMAGES_PER_PROMPTS,
+            img_metadata_file = generate_images_flux(result, IMAGE_DIR, api_key=TOGETHER_AI_API_KEY, num_images=NUM_IMAGES_PER_PROMPTS,
                                  img_quality=4, aspect_ratio=ASPECT_RATIO)
         processed_script = remove_enclosed_segments(result["script"])
         processed_script = processed_script.replace('<>', '')
@@ -274,6 +277,8 @@ def main():
         scene_timing_file = os.path.join(AUDIO_DIR, "scene_timings.json")
         fetch_audio_timings(audio_file=save_file_path, script_file=file_path, api_key=ASSEMBLYAI_API_KEY,
                             output_file=scene_timing_file)
+        img_timing_file = os.path.join(AUDIO_DIR, "img_timings.json")
+        calculate_media_timings(scene_timing_file=scene_timing_file,img_metadata=img_metadata_file,output_file=img_timing_file)
         video_path = os.path.join(SHORTS_DIR, "merged_video.mp4")
         create_video_from_images(IMAGE_DIR, save_file_path, video_path, TARGET_SIZE)
         avatar_video_path = os.path.join(SHORTS_DIR, "avatar_video.mp4")

@@ -10,7 +10,7 @@ from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI # For Gemini models
 from langchain_anthropic import ChatAnthropic
 from langchain_community.chat_models import ChatOllama
-
+import time
 
 class YouTubeContentGenerator:
     """
@@ -200,12 +200,22 @@ class YouTubeContentGenerator:
         section_chain = LLMChain(llm=self.llm, prompt=section_prompt)
         final_prompts = {}
         for index, scene in enumerate(scenes):
-            resp = section_chain.run(scene=scene,
-                                     topic=topic,
-                                     WIDTH=width,
-                                     HEIGHT=height,
-                                     ASPECT_RATIO=aspect_ratio)
-            final_prompts[f'{index + 1}'] = resp
+            success = False
+            while not success:
+                try:
+                    resp = section_chain.run(scene=scene,
+                                             topic=topic,
+                                             WIDTH=width,
+                                             HEIGHT=height,
+                                             ASPECT_RATIO=aspect_ratio)
+                    final_prompts[f'{index + 1}'] = resp
+                    # print("result: ", resp)
+                    success = True
+                except Exception as e:
+                    print("RATE LIMITING CONDITION REACHED FOR RPM")
+                    print("WAITING FOR 60 seconds!!!")
+                    time.sleep(60)
+                    success = False
         # final_prompts = self.parse_image_prompts(final_prompts)
         return final_prompts
         

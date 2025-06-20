@@ -3,6 +3,7 @@ import random
 from moviepy.editor import *
 from PIL import Image
 import numpy as np
+import json
 
 def resize_image_to_target(image_path, target_size=(1920, 1080)):
     """
@@ -73,22 +74,23 @@ def create_zoom_effect(image_array, duration, zoom_type='in', zoom_factor=1.3):
     
     return VideoClip(make_frame, duration=duration)
 
-def create_video_from_images(images_folder, audio_file, output_file, target_size=(1920, 1080)):
+def create_video_from_images(img_timing_file,images_folder, audio_file, output_file, target_size=(1920, 1080)):
     """
     Create video from images with transitions, zoom effects, and audio
     """
     ### TODO: NEED TO FIND A BETTER WAY
     # Get all PNG files
     imges_len = len(os.listdir(images_folder))
-    image_files = [f"{i+1}.png" for i in range(imges_len)]
-    image_files = [img_file for img_file in image_files if os.path.exists(os.path.join(images_folder,img_file))]
+    image_timings = json.load(open(img_timing_file))
+    # image_files = [f"{i+1}.png" for i in range(imges_len)]
+    # image_files = [img_file for img_file in image_files if os.path.exists(os.path.join(images_folder,img_file))]
     # image_files = [f for f in os.listdir(images_folder) if f.lower().endswith('.png')]
     # image_files.sort()  # Sort alphabetically
     
-    if not image_files:
-        raise ValueError(f"No PNG files found in the specified folder, {images_folder}")
+    # if not image_files:
+    #     raise ValueError(f"No PNG files found in the specified folder, {images_folder}")
     
-    print(f"Found {len(image_files)} images")
+    print(f"Found {len(image_timings)} images")
     
     # Load audio to get duration
     audio_clip = AudioFileClip(audio_file)
@@ -96,20 +98,23 @@ def create_video_from_images(images_folder, audio_file, output_file, target_size
     
     # Calculate timing
     transition_duration = 0.5  # 0.5 seconds for transitions
-    image_display_time = (total_duration - (len(image_files) - 1) * transition_duration) / len(image_files)
+    # image_display_time = (total_duration - (len(image_files) - 1) * transition_duration) / len(image_files)
     
-    if image_display_time < 1.0:
-        print("Warning: Images will be displayed very briefly due to short audio duration")
+    # if image_display_time < 1.0:
+    #     print("Warning: Images will be displayed very briefly due to short audio duration")
     
-    print(f"Each image will display for {image_display_time:.2f} seconds")
+    # print(f"Each image will display for {image_display_time:.2f} seconds")
     print(f"Transition duration: {transition_duration} seconds")
     
     # Create video clips
     clips = []
     zoom_effects = ['in', 'out', 'none']  # Different effects to cycle through
-    for i, image_file in enumerate(image_files):
-        image_path = os.path.join(images_folder, image_file)
-        print(f"Processing {image_file}...")
+    for i, image_file in enumerate(image_timings):
+        image_path = image_file['image_path']
+        image_display_time = image_file['image_duration'] - transition_duration
+        # if i == 1:
+        #     image_display_time = image_file['image_duration'] - transition_duration
+        print(f"Processing {image_path}...")
         
         # Resize image
         resized_image = resize_image_to_target(image_path, target_size)
@@ -127,9 +132,9 @@ def create_video_from_images(images_folder, audio_file, output_file, target_size
         clips.append(clip)
         
         # Add transition (except for the last image)
-        if i < len(image_files) - 1:
+        if i < len(image_timings) - 1:
             # Create crossfade transition
-            next_image_path = os.path.join(images_folder, image_files[i + 1])
+            next_image_path = image_timings[i + 1]['image_path']
             next_resized_image = resize_image_to_target(next_image_path, target_size)
             
             # Create a short clip for transition
@@ -141,6 +146,8 @@ def create_video_from_images(images_folder, audio_file, output_file, target_size
             
             clips.append(transition_clip)
     
+    for i,clip in enumerate(clips):
+        print(i,clip.duration)
     # Concatenate all clips
     print("Concatenating clips...")
     final_video = concatenate_videoclips(clips, method="compose")
@@ -169,20 +176,3 @@ def create_video_from_images(images_folder, audio_file, output_file, target_size
     # Clean up
     audio_clip.close()
     final_video.close()
-
-# Example usage
-if __name__ == "__main__":
-    # Configuration
-    IMAGES_FOLDER = r"C:\Users\rohaa\Documents\yt-video-automation\what_if_NASA_had_budget_of_US_miltary\what_if_NASA_had_budget_of_US_miltary"
-    AUDIO_FILE = r"C:\Users\rohaa\Documents\yt-video-automation\ElevenLabs_2025-05-23T16_53_13_Rachel_pre_sp100_s50_sb75_se0_b_m2.mp3"
-    OUTPUT_FILE = "output_video.mp4"
-    
-    # YouTube recommended resolution (you can change this)
-    # TARGET_SIZE = (1920, 1080)  # Full HD
-    TARGET_SIZE = (1280, 720)   # HD
-    # TARGET_SIZE = (3840, 2160)  # 4K
-    
-    try:
-        create_video_from_images("/home/amal/amal/side/youtube-automation/data/images", "/home/amal/amal/side/youtube-automation/data/audio/audio_output.mp3", "final.mp4", TARGET_SIZE)
-    except Exception as e:
-        print(f"Error: {e}")
