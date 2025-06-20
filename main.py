@@ -234,8 +234,8 @@ def main():
         SHORTS_DIR = os.path.join(VIDEO_SAVE_DIR, "shorts")
         os.makedirs(SHORTS_DIR, exist_ok=True)
         ASPECT_RATIO = "9:16"
-        NUM_IMAGES_PER_PROMPTS = 2
-        NUM_IMG_PROMPTS = 5
+        NUM_IMAGES_PER_PROMPTS = 1
+        NUM_IMG_PROMPTS = 10
         AUDIO_PACE = 1.2
         MAX_VIDEO_LENGTH = 30
         TARGET_SIZE = [720, 1280]
@@ -281,7 +281,8 @@ def main():
         img_timing_file = os.path.join(AUDIO_DIR, "img_timings.json")
         calculate_media_timings(scene_timing_file=scene_timing_file,img_metadata=img_metadata_file,output_file=img_timing_file)
         video_path = os.path.join(SHORTS_DIR, "merged_video.mp4")
-        create_video_from_images(IMAGE_DIR, save_file_path, video_path, TARGET_SIZE)
+        create_video_from_images(img_timing_file,IMAGE_DIR, save_file_path, video_path, target_size=TARGET_SIZE)
+        # create_video_from_images(IMAGE_DIR, save_file_path, video_path, TARGET_SIZE)
         avatar_video_path = os.path.join(SHORTS_DIR, "avatar_video.mp4")
         add_avatar(audio_file=save_file_path, video_file=video_path, output_file=avatar_video_path, scale=AVATAR_SCALE)
         output_path = os.path.join(VIDEO_SAVE_DIR, "shorts.mp4")

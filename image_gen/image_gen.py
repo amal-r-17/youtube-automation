@@ -291,11 +291,12 @@ def generate_images(prompts, output_path, api_key, num_images=3, score_threshold
     # Convert results to the expected format (string keys, ordered by image count)
     for i in range(1, len(tasks) + 1):
         if i in results:
-            output["image-paths"][str(i)] = results[i]
+            output["image-paths"][f"img_prompt_{str(i)}"] = results[i]
         else:
-            output["image-paths"][str(i)] = "No-image"
-    
-    return output
+            output["image-paths"][f"img_prompt_{str(i)}"] = "No-image"
+    output_file = f"{output_path}/image_metadata.json"
+    json.dump(output, open(output_file, "w"))
+    return output_file
 
 # def generate_images_flux(prompts, output_path, api_key, num_images=3, img_quality=4, aspect_ratio='16:9'):
 #     output = {"script": prompts['script'], "image-paths": {}}
@@ -460,8 +461,10 @@ def generate_images_flux(prompts, output_path, api_key, num_images=3, img_qualit
     # Convert results to the expected format (string keys, ordered by image count)
     for i in range(1, len(tasks) + 1):
         if i in results:
-            output["image-paths"][str(i)] = results[i]
+            output["image-paths"][f"img_prompt_{str(i)}"] = [results[i]]
         else:
-            output["image-paths"][str(i)] = "No-image"
-    
-    return output
+            output["image-paths"][f"img_prompt_{str(i)}"] = ["No-image"]
+    output_file = f"{output_path}/image_metadata.json"
+    json.dump(output, open(output_file, "w"))
+
+    return output_file
