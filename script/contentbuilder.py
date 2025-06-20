@@ -38,15 +38,15 @@ class ContentCreator:
             Dict[str, Any]: A dictionary containing the script and image prompts
         """
         # Step 1: Generate the YouTube script
-        script = self.generator.generate_youtube_script(topic=topic, context=context,time_unit=time_unit)
+        script = self.generator.generate_youtube_script(topic=topic, context=context, time_unit=time_unit)
         
-        print("GENERATED SCRIPT: ", script)
+        # print("GENERATED SCRIPT: ", script)
         # Step 2: Generate image prompts from the script
         image_prompts = self.generator.generate_image_prompts(script=script,topic=topic,height=height,width=width,aspect_ratio=aspect_ratio)
-        print("IMG prompts: ", image_prompts)
+        # print("IMG prompts: ", image_prompts)
         # Step 3: Generate a Thumbnail from the script
         thumbnail_prompt = self.generator.generate_thumbnail_prompts(script)
-        print("thumbnail_prompt: ", image_prompts)
+        # print("thumbnail_prompt: ", image_prompts)
         # Step 4: Generate a youtube video description
         video_description = self.generator.generate_youtube_description(script=script, topic=topic)
 

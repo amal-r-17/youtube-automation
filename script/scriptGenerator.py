@@ -150,8 +150,8 @@ class YouTubeContentGenerator:
                                         Shorts-Specific Structure:
 
                                         0-3 seconds: INSTANT HOOK - An attention-grabbing statement that immediately establishes intrigue. Use formats like "You won't believe what happens when..." or "Everyone gets this wrong about..." or "The thing nobody tells you about..."
-                                        3-{duration-10} seconds: RAPID VALUE DELIVERY - Pack maximum insights, revelations, or entertainment into the middle section with rapid-fire, punchy delivery
-                                        Final {duration-10}-{duration} seconds: PAYOFF + ENGAGEMENT BAIT - Deliver the promised revelation and include a strong engagement hook (comment bait, follow request, or teaser for next video)
+                                        Intial seconds: RAPID VALUE DELIVERY - Pack maximum insights, revelations, or entertainment into the middle section with rapid-fire, punchy delivery
+                                        Final seconds: PAYOFF + ENGAGEMENT BAIT - Deliver the promised revelation and include a strong engagement hook and make sure ask the audience to watch the full video from the link in the description(comment bait, follow request, or teaser for next video)
 
                                         Narrator Persona:
 
@@ -185,7 +185,7 @@ class YouTubeContentGenerator:
                                         Build in rhythm and pacing that matches the high-energy shorts format
                                         End with a witty, character-driven call-to-action that feels authentic to your sarcastic persona
 
-                                        Output: Pure spoken dialogue only - a continuous {duration}-second monologue that could be recorded immediately without any additional formatting or instructions.
+                                        Output: Pure spoken dialogue only - a continuous {max_minute}-second monologue that could be recorded immediately without any additional formatting or instructions.
                                         YOUTUBE SHORTS SCRIPT:
             """
         
@@ -193,6 +193,8 @@ class YouTubeContentGenerator:
             input_variables=["topic", "max_minute", "context","max_image_prompts","segment_len","time_unit"],
             template=script_prompt_template if not self.SHORTS else shorts_prompt_template
         )
+        if self.SHORTS:
+            self.video_len = 20
         
         script_chain = LLMChain(llm=self.llm, prompt=script_prompt)
         result = script_chain.run(topic=topic, max_minute=self.video_len, context=context,max_image_prompts=self.num_img_prompts,segment_len=self.segment_len,time_unit=time_unit)
@@ -257,6 +259,7 @@ class YouTubeContentGenerator:
             sucess = False
             while not sucess:
                 try:
+                    print("PRocessing for scene: ", scene)
                     resp = section_chain.run(scene=scene,
                                             topic=topic,
                                             WIDTH=width,
@@ -266,10 +269,11 @@ class YouTubeContentGenerator:
                     print("result: ", resp)
                     sucess = True
                 except Exception as e:
-                    time.sleep(60)
                     print("RATE LIMITING CONDITION REACHED FOR RPM")
                     print("WAITING FOR 60 seconds!!!")
+                    time.sleep(60)
                     sucess = False
+                    print("Continuing the process...")
 
             #time.sleep(5)
         # final_prompts = self.parse_image_prompts(final_prompts)
