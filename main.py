@@ -54,7 +54,7 @@ def main():
     GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY")
     PIXARAY_API_KEY = os.getenv("PIXARAY_API_KEY")
     ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY")
-    TOGETHER_AI_API_KEY = os.environ["TOGETHER_AI_API_KEY"]
+    TOGETHER_AI_API_KEY = os.getenv("TOGETHER_AI_API_KEY")
 
     SAVE_DIR = os.getenv("SAVE_DIR")
     os.makedirs(SAVE_DIR, exist_ok=True)
@@ -106,6 +106,7 @@ def main():
             context = grounding_gemini(api_key=GOOGLE_API_KEY, topic=topic)
         else:
             print('with DuckDuckGo')
+            print("API KEY USED: ", GOOGLE_API_KEY)
             scrapper = ContentSummarizer(min_len=20, api_key=GOOGLE_API_KEY)
             context = scrapper.run(topic=topic)
         time_taken = calc_time(start)
@@ -113,7 +114,7 @@ def main():
     else:
         print('Scraping content disabled')
         context = ""
-
+    print("CONTEXT: ", context)
     # Generate content
     print("Generating script ...")
     start = time.time()
@@ -239,11 +240,12 @@ def main():
         AUDIO_PACE = 1.2
         MAX_VIDEO_LENGTH = 30
         TARGET_SIZE = [720, 1280]
+        AVATAR_SCALE = 0.3
         creator = ContentCreator(
             llm_provider=llm_provider,
             api_key=api_key,
             model_name=model_name,
-            MAX_VIDEO_LENGTH=MAX_VIDEO_LENGTH, NUM_IMG_PROMPTS=NUM_IMG_PROMPTS, IMAGE_DIM=TARGET_SIZE, ASPECT_RATIO=ASPECT_RATIO
+            MAX_VIDEO_LENGTH=MAX_VIDEO_LENGTH, NUM_IMG_PROMPTS=NUM_IMG_PROMPTS, IMAGE_DIM=TARGET_SIZE, ASPECT_RATIO=ASPECT_RATIO, SHORTS=True
         )
         result = creator.create_content(topic, context=context, height=TARGET_SIZE[1], width=TARGET_SIZE[0],
                                         aspect_ratio=ASPECT_RATIO,time_unit='seconds')
@@ -282,7 +284,7 @@ def main():
         video_path = os.path.join(SHORTS_DIR, "merged_video.mp4")
         create_video_from_images(IMAGE_DIR, save_file_path, video_path, TARGET_SIZE)
         avatar_video_path = os.path.join(SHORTS_DIR, "avatar_video.mp4")
-        add_avatar(audio_file=save_file_path, video_file=video_path, output_file=avatar_video_path, scale=scale)
+        add_avatar(audio_file=save_file_path, video_file=video_path, output_file=avatar_video_path, scale=AVATAR_SCALE)
         output_path = os.path.join(VIDEO_SAVE_DIR, "shorts.mp4")
         generate_captions(avatar_video_path, output_path, model_path)
 

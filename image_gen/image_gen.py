@@ -11,6 +11,8 @@ import numpy as np
 from numpy.linalg import norm
 import json
 from random import randint
+import threading, time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def load_image_data(image_path):
     """Loads an image from a file path and converts it to bytes."""
@@ -162,80 +164,304 @@ def image_generator(prompt_str, api_key, model='gemini-2.0-flash-preview-image-g
             image.save(output_filepath)
 
 
-def generate_images(prompts, output_path, api_key, num_images=3, score_threshold=0.7, aspect_ratio='16:9'):
-  output = {"script": prompts['script'], "image-paths": {}}
-  image_count = 1
-  for i, prompt in prompts['image-prompts'].items():
-      print("IMG PROMPT #:",i)
-      output_files = []
-      for _ in range(num_images):
+# def generate_images(prompts, output_path, api_key, num_images=3, score_threshold=0.7, aspect_ratio='16:9'):
+#   output = {"script": prompts['script'], "image-paths": {}}
+#   image_count = 1
+#   for i, prompt in prompts['image-prompts'].items():
+#       print("IMG PROMPT #:",i)
+#       # prompt = prompt + "  in aspect ratio 16:9"
+#       for _ in range(num_images):
+#         img_created = False
+#         try:
+#             output_file = f"{output_path}/{image_count}.png"
+#             image_generator(prompt_str=prompt, output_filepath=output_file, api_key=api_key,aspect_ratio=aspect_ratio)
+#             approve, score = image_prompt_similarity_score(image_file_path=output_file, target_prompt=prompt,api_key=api_key, score_threshold=score_threshold)
+#             img_iter = 0
+#             print(f"image #: {image_count}, img prompt #: {i}, score: {score}, image_iter: {img_iter}")
+#             while not approve and img_iter <= 5:
+#                 image_generator(prompt_str=prompt, output_filepath=output_file, api_key=api_key)
+#                 approve, score = image_prompt_similarity_score(image_file_path=output_file, target_prompt=prompt,api_key=api_key, score_threshold=score_threshold)
+#                 img_iter += 1
+#                 print(f"image #: {image_count}, img prompt #: {i}, score: {score}, image_iter: {img_iter}")
+#         except Exception as e:
+#             print("ERROR OCCURED: ", e)
+#             if img_created:
+#                 print("IMAGE ALREADY CREATED for img prompt #:", image_count, "score:", score)
+#             output_file = "No-image"
+#         print("IMAGE SAVED to: ", output_file,"\n")
+#         output["image-paths"][f"{image_count}"] = output_file
+#         image_count+=1
+#   return output
+
+def generate_images(prompts, output_path, api_key, num_images=3, score_threshold=0.7, aspect_ratio='16:9', max_processes=4, rpm_limit=6):
+    output = {"script": prompts['script'], "image-paths": {}}
+    
+    # Create a list of all image generation tasks
+    tasks = []
+    image_count = 1
+    
+    for i, prompt in prompts['image-prompts'].items():
+        print("IMG PROMPT #:", i)
+        for _ in range(num_images):
+            tasks.append({
+                'image_count': image_count,
+                'prompt_id': i,
+                'prompt': prompt,
+                'output_path': output_path,
+                'api_key': api_key,
+                'score_threshold': score_threshold,
+                'aspect_ratio': aspect_ratio
+            })
+            image_count += 1
+    
+    def generate_single_image(task):
+        """Function to generate a single image with retry logic - runs in separate process"""
+        image_count = task['image_count']
+        prompt_id = task['prompt_id']
+        prompt = task['prompt']
+        output_path = task['output_path']
+        api_key = task['api_key']
+        score_threshold = task['score_threshold']
+        aspect_ratio = task['aspect_ratio']
+        
         img_created = False
+        output_file = "No-image"
+        score = 0
+        
         try:
             output_file = f"{output_path}/{image_count}.png"
-            image_generator(prompt_str=prompt, output_filepath=output_file, api_key=api_key,aspect_ratio=aspect_ratio)
-            approve, score = image_prompt_similarity_score(image_file_path=output_file, target_prompt=prompt,api_key=api_key, score_threshold=score_threshold)
+            image_generator(prompt_str=prompt, output_filepath=output_file, api_key=api_key, aspect_ratio=aspect_ratio)
+            approve, score = image_prompt_similarity_score(image_file_path=output_file, target_prompt=prompt, api_key=api_key, score_threshold=score_threshold)
             img_iter = 0
-            print(f"image #: {image_count}, img prompt #: {i}, score: {score}, image_iter: {img_iter}")
+            print(f"image #: {image_count}, img prompt #: {prompt_id}, score: {score}, image_iter: {img_iter}")
+            
             while not approve and img_iter <= 5:
-                image_generator(prompt_str=prompt, output_filepath=output_file, api_key=api_key)
-                approve, score = image_prompt_similarity_score(image_file_path=output_file, target_prompt=prompt,api_key=api_key, score_threshold=score_threshold)
+                image_generator(prompt_str=prompt, output_filepath=output_file, api_key=api_key, aspect_ratio=aspect_ratio)
+                approve, score = image_prompt_similarity_score(image_file_path=output_file, target_prompt=prompt, api_key=api_key, score_threshold=score_threshold)
                 img_iter += 1
-                print(f"image #: {image_count}, img prompt #: {i}, score: {score}, image_iter: {img_iter}")
+                print(f"image #: {image_count}, img prompt #: {prompt_id}, score: {score}, image_iter: {img_iter}")
+            
+            img_created = True
+            
         except Exception as e:
             print("ERROR OCCURED: ", e)
             if img_created:
                 print("IMAGE ALREADY CREATED for img prompt #:", image_count, "score:", score)
-            else:
-                output_file = "No-image"
-        print("IMAGE SAVED to: ", output_file,"\n")
-        output_files.append(output_file)
-        image_count+=1
-      output["image-paths"][f"img_prompt_{i}"] = output_files
-  output_file = f"{output_path}/image_metadata.json"
-  json.dump(output, open(output_file, "w"))
-  return output_file
+            output_file = "No-image"
+        
+        print("IMAGE SAVED to: ", output_file, "\n")
+        
+        return image_count, output_file
+    
+    # Dictionary to store results
+    results = {}
+    
+    # Process tasks in batches to respect RPM limit
+    total_images = len(tasks)
+    batch_size = rpm_limit
+    
+    for batch_start in range(0, total_images, batch_size):
+        batch_end = min(batch_start + batch_size, total_images)
+        batch_tasks = tasks[batch_start:batch_end]
+        
+        print(f"Processing batch: images {batch_start + 1}-{batch_end} ({len(batch_tasks)} images)")
+        
+        # Use min of batch size and max_processes for this batch
+        actual_max_processes = min(max_processes, len(batch_tasks))
+        
+        with ThreadPoolExecutor(max_workers=actual_max_processes) as executor:
+            # Submit batch tasks
+            future_to_task = {executor.submit(generate_single_image, task): task for task in batch_tasks}
+            
+            # Wait for all tasks in this batch to complete
+            for future in as_completed(future_to_task):
+                try:
+                    image_count, output_file = future.result()
+                    results[image_count] = output_file
+                except Exception as e:
+                    task = future_to_task[future]
+                    print(f"Task for image #{task['image_count']} failed with exception: {e}")
+                    results[task['image_count']] = "No-image"
+        
+        # Wait before next batch (except for the last batch)
+        if batch_end < total_images:
+            print(f"Batch complete. Waiting 60 seconds for rate limit... ({total_images - batch_end} images remaining)")
+            time.sleep(60)
+    
+    # Convert results to the expected format (string keys, ordered by image count)
+    for i in range(1, len(tasks) + 1):
+        if i in results:
+            output["image-paths"][str(i)] = results[i]
+        else:
+            output["image-paths"][str(i)] = "No-image"
+    
+    return output
 
-def generate_images_flux(prompts, output_path, api_key, num_images=3, img_quality=4, aspect_ratio='16:9'):
+# def generate_images_flux(prompts, output_path, api_key, num_images=3, img_quality=4, aspect_ratio='16:9'):
+#     output = {"script": prompts['script'], "image-paths": {}}
+#     image_count = 1
+#     client = Together(api_key=api_key)
+#     width, height = 1280,720#1440, 816
+#     if aspect_ratio == "9:16":
+#         width, height = height,width
+#     seed = randint(1,40)
+#     for i, prompt in prompts['image-prompts'].items():
+#         print("IMG PROMPT #:", i)
+#         for _ in range(num_images):
+#             seed = randint(1,40)
+#             try:
+#                 output_file = f"{output_path}/{image_count}.png"
+#                 try:
+#                     response = client.images.generate(
+#                         prompt=prompt, model="black-forest-labs/FLUX.1-schnell-Free",
+#                         width=width, height=height, steps=img_quality, seed=seed,
+#                     )
+#                     image_url = response.data[0].url
+#                     img_data = requests.get(image_url).content
+#                     with open(output_file, "wb") as f:
+#                         f.write(img_data)
+#                 except:
+#                     seed = randint(1, 40)
+#                     response = client.images.generate(
+#                         prompt=prompt, model="black-forest-labs/FLUX.1-schnell-Free",
+#                         width=width, height=height, steps=img_quality, seed=seed,
+#                     )
+#                     image_url = response.data[0].url
+#                     img_data = requests.get(image_url).content
+#                     with open(output_file, "wb") as f:
+#                         f.write(img_data)
+#             except Exception as e:
+#                 print("ERROR OCCURED: ", e)
+#                 output_file = "No-image"
+#             print("IMAGE SAVED to: ", output_file, "\n")
+#             output["image-paths"][f"{image_count}"] = output_file
+#             image_count += 1
+    # return output
+
+def generate_images_flux(prompts, output_path, api_key, num_images=3, img_quality=4, aspect_ratio='16:9', max_threads=5, rpm_limit=6):
     output = {"script": prompts['script'], "image-paths": {}}
+    
+    # Create a list of all image generation tasks
+    tasks = []
     image_count = 1
-    client = Together(api_key=api_key)
-    width, height = 1280,720#1440, 816
-    if aspect_ratio == "9:16":
-        width, height = height,width
-    seed = randint(1,40)
+    
     for i, prompt in prompts['image-prompts'].items():
         print("IMG PROMPT #:", i)
         output_files = []
         for _ in range(num_images):
-            seed = randint(1,40)
-            try:
-                output_file = f"{output_path}/{image_count}.png"
-                try:
-                    response = client.images.generate(
-                        prompt=prompt, model="black-forest-labs/FLUX.1-schnell-Free",
-                        width=width, height=height, steps=img_quality, seed=seed,
-                    )
-                    image_url = response.data[0].url
-                    img_data = requests.get(image_url).content
-                    with open(output_file, "wb") as f:
-                        f.write(img_data)
-                except:
-                    seed = randint(1, 40)
-                    response = client.images.generate(
-                        prompt=prompt, model="black-forest-labs/FLUX.1-schnell-Free",
-                        width=width, height=height, steps=img_quality, seed=seed,
-                    )
-                    image_url = response.data[0].url
-                    img_data = requests.get(image_url).content
-                    with open(output_file, "wb") as f:
-                        f.write(img_data)
-            except Exception as e:
-                print("ERROR OCCURED: ", e)
-                output_file = "No-image"
-            print("IMAGE SAVED to: ", output_file, "\n")
-            output_files.append(output_file)
+            tasks.append({
+                'image_count': image_count,
+                'prompt_id': i,
+                'prompt': prompt,
+                'output_path': output_path,
+                'api_key': api_key,
+                'img_quality': img_quality,
+                'aspect_ratio': aspect_ratio
+            })
             image_count += 1
-        output["image-paths"][f"img_prompt_{i}"] = output_files
-    output_file = f"{output_path}/image_metadata.json"
-    json.dump(output, open(output_file, "w"))
-    return output_file
+    
+    # Thread-safe dictionary to store results
+    results = {}
+    results_lock = threading.Lock()
+    
+    def generate_single_flux_image(task):
+        """Function to generate a single image using Flux API"""
+        image_count = task['image_count']
+        prompt_id = task['prompt_id']
+        prompt = task['prompt']
+        output_path = task['output_path']
+        api_key = task['api_key']
+        img_quality = task['img_quality']
+        aspect_ratio = task['aspect_ratio']
+        
+        output_file = "No-image"
+        
+        # Create client instance for this thread
+        client = Together(api_key=api_key)
+        width, height = 1280, 720  # 1440, 816
+        if aspect_ratio == "9:16":
+            width, height = height, width
+        
+        try:
+            output_file = f"{output_path}/{image_count}.png"
+            seed = randint(1, 40)
+            
+            try:
+                response = client.images.generate(
+                    prompt=prompt, model="black-forest-labs/FLUX.1-schnell-Free",
+                    width=width, height=height, steps=img_quality, seed=seed,
+                )
+                image_url = response.data[0].url
+                img_data = requests.get(image_url).content
+                with open(output_file, "wb") as f:
+                    f.write(img_data)
+            except:
+                # Retry with different seed
+                seed = randint(1, 40)
+                response = client.images.generate(
+                    prompt=prompt, model="black-forest-labs/FLUX.1-schnell-Free",
+                    width=width, height=height, steps=img_quality, seed=seed,
+                )
+                image_url = response.data[0].url
+                img_data = requests.get(image_url).content
+                with open(output_file, "wb") as f:
+                    f.write(img_data)
+                    
+        except Exception as e:
+            print("ERROR OCCURED: ", e)
+            output_file = "No-image"
+        
+        print("IMAGE SAVED to: ", output_file, "\n")
+        
+        # Thread-safe result storage
+        with results_lock:
+            results[image_count] = output_file
+        
+        return image_count, output_file
+    
+    # Process tasks in batches to respect RPM limit
+    total_images = len(tasks)
+    batch_size = rpm_limit - 1
+    
+    for batch_start in range(0, total_images, batch_size):
+        st_time = time.time()
+        batch_end = min(batch_start + batch_size, total_images)
+        batch_tasks = tasks[batch_start:batch_end]
+        
+        print(f"Processing batch: images {batch_start + 1}-{batch_end} ({len(batch_tasks)} images)")
+        
+        # Use min of batch size and max_threads for this batch
+        actual_max_threads = min(max_threads, len(batch_tasks))
+        
+        with ThreadPoolExecutor(max_workers=actual_max_threads) as executor:
+            # Submit batch tasks
+            future_to_task = {executor.submit(generate_single_flux_image, task): task for task in batch_tasks}
+            
+            # Wait for all tasks in this batch to complete
+            for future in as_completed(future_to_task):
+                try:
+                    future.result()
+                except Exception as e:
+                    task = future_to_task[future]
+                    print(f"Task for image #{task['image_count']} failed with exception: {e}")
+        
+        # Wait before next batch (except for the last batch)
+        if batch_end < total_images:
+            # time_passed = int(time.time() - st_time)
+            # if time_passed<60:
+            #     time_left = 60 - time_passed
+            #     print(f"Batch complete. Waiting {time_left} seconds for rate limit... ({total_images - batch_end} images remaining)")
+            #     time.sleep(time_left)
+            # else:
+            #     print("Starting the next batch")
+            print(f"Batch complete. Waiting {60} seconds for rate limit... ({total_images - batch_end} images remaining)")
+            time.sleep(60)
+    
+    # Convert results to the expected format (string keys, ordered by image count)
+    for i in range(1, len(tasks) + 1):
+        if i in results:
+            output["image-paths"][str(i)] = results[i]
+        else:
+            output["image-paths"][str(i)] = "No-image"
+    
+    return output

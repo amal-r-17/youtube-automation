@@ -56,7 +56,7 @@ def scrape_links_pexels(driver,topic,orientation='landscape',num_scrolls=5):
     return video_results
 
 def scrape_links_pixabay(topic,pixaray_api_key):
-    url = f"https://pixabay.com/api/videos/?key={pixaray_api_key}={topic.replace(" ","+")}"
+    url = f"https://pixabay.com/api/videos/?key={pixaray_api_key}={topic.replace(' ','+')}"
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
     results = json.loads(str(soup))
