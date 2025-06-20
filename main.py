@@ -106,7 +106,6 @@ def main():
             context = grounding_gemini(api_key=GOOGLE_API_KEY, topic=topic)
         else:
             print('with DuckDuckGo')
-            print("API KEY USED: ", GOOGLE_API_KEY)
             scrapper = ContentSummarizer(min_len=20, api_key=GOOGLE_API_KEY)
             context = scrapper.run(topic=topic)
         time_taken = calc_time(start)

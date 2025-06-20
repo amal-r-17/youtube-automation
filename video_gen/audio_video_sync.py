@@ -120,7 +120,7 @@ def calculate_media_timings(scene_timing_file,img_metadata,output_file):
         start_minutes, start_seconds = map(int, scene_start.split(':'))
         end_minutes, end_seconds = map(int, scene_end.split(':'))
         time_seconds = (end_minutes * 60 + end_seconds) - (start_minutes * 60 + start_seconds)
-        img_paths = image_metadata['image-paths'][f'img_prompt_{scene['index']}']
+        img_paths = image_metadata['image-paths'][f'img_prompt_{scene["index"]}']
         img_paths = [path for path in img_paths if path != 'No-image']
         image_duration = time_seconds / len(img_paths)
         for img_path in img_paths:
