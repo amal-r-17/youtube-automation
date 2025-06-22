@@ -194,7 +194,7 @@ class YouTubeContentGenerator:
             template=script_prompt_template if not self.SHORTS else shorts_prompt_template
         )
         if self.SHORTS:
-            self.video_len = 20
+            self.video_len = 15
         
         script_chain = LLMChain(llm=self.llm, prompt=script_prompt)
         result = script_chain.run(topic=topic, max_minute=self.video_len, context=context,max_image_prompts=self.num_img_prompts,segment_len=self.segment_len,time_unit=time_unit)

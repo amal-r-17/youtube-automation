@@ -235,7 +235,7 @@ def main():
         os.makedirs(SHORTS_DIR, exist_ok=True)
         ASPECT_RATIO = "9:16"
         NUM_IMAGES_PER_PROMPTS = 1
-        NUM_IMG_PROMPTS = 10
+        NUM_IMG_PROMPTS = 5
         AUDIO_PACE = 1.2
         MAX_VIDEO_LENGTH = 30
         TARGET_SIZE = [720, 1280]
