@@ -11,6 +11,7 @@ import numpy as np
 from numpy.linalg import norm
 import json
 from random import randint
+from tqdm import tqdm
 
 def load_image_data(image_path):
     """Loads an image from a file path and converts it to bytes."""
@@ -165,8 +166,9 @@ def image_generator(prompt_str, api_key, model='gemini-2.0-flash-preview-image-g
 def generate_images(prompts, output_path, api_key, num_images=3, score_threshold=0.7, aspect_ratio='16:9'):
   output = {"script": prompts['script'], "image-paths": {}}
   image_count = 1
-  for i, prompt in prompts['image-prompts'].items():
-      print("IMG PROMPT #:",i)
+  print(f"Generating images for {len(prompts['image-prompts'])} image prompts")
+  for i, prompt in tqdm(prompts['image-prompts'].items()):
+      # print("IMG PROMPT #:",i)
       output_files = []
       for _ in range(num_images):
         img_created = False
@@ -175,19 +177,19 @@ def generate_images(prompts, output_path, api_key, num_images=3, score_threshold
             image_generator(prompt_str=prompt, output_filepath=output_file, api_key=api_key,aspect_ratio=aspect_ratio)
             approve, score = image_prompt_similarity_score(image_file_path=output_file, target_prompt=prompt,api_key=api_key, score_threshold=score_threshold)
             img_iter = 0
-            print(f"image #: {image_count}, img prompt #: {i}, score: {score}, image_iter: {img_iter}")
+            # print(f"image #: {image_count}, img prompt #: {i}, score: {score}, image_iter: {img_iter}")
             while not approve and img_iter <= 5:
                 image_generator(prompt_str=prompt, output_filepath=output_file, api_key=api_key)
                 approve, score = image_prompt_similarity_score(image_file_path=output_file, target_prompt=prompt,api_key=api_key, score_threshold=score_threshold)
                 img_iter += 1
-                print(f"image #: {image_count}, img prompt #: {i}, score: {score}, image_iter: {img_iter}")
+                # print(f"image #: {image_count}, img prompt #: {i}, score: {score}, image_iter: {img_iter}")
         except Exception as e:
             print("ERROR OCCURED: ", e)
             if img_created:
                 print("IMAGE ALREADY CREATED for img prompt #:", image_count, "score:", score)
             else:
                 output_file = "No-image"
-        print("IMAGE SAVED to: ", output_file,"\n")
+        # print("IMAGE SAVED to: ", output_file,"\n")
         output_files.append(output_file)
         image_count+=1
       output["image-paths"][f"img_prompt_{i}"] = output_files
@@ -203,8 +205,9 @@ def generate_images_flux(prompts, output_path, api_key, num_images=3, img_qualit
     if aspect_ratio == "9:16":
         width, height = height,width
     seed = randint(1,40)
-    for i, prompt in prompts['image-prompts'].items():
-        print("IMG PROMPT #:", i)
+    print(f"Generating {len(prompts['image-prompts'])} images")
+    for i, prompt in tqdm(prompts['image-prompts'].items()):
+        # print("IMG PROMPT #:", i)
         output_files = []
         for _ in range(num_images):
             seed = randint(1,40)
@@ -232,7 +235,7 @@ def generate_images_flux(prompts, output_path, api_key, num_images=3, img_qualit
             except Exception as e:
                 print("ERROR OCCURED: ", e)
                 output_file = "No-image"
-            print("IMAGE SAVED to: ", output_file, "\n")
+            # print("IMAGE SAVED to: ", output_file, "\n")
             output_files.append(output_file)
             image_count += 1
         output["image-paths"][f"img_prompt_{i}"] = output_files

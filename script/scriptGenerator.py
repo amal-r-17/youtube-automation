@@ -55,7 +55,7 @@ class YouTubeContentGenerator:
             return ChatGroq(temperature=0.7, model_name=model, api_key=api_key)
         
         elif self.llm_provider == "gemini":
-            api_key = self.api_key or os.environ.get("GOOGLE_API_KEY")
+            api_key = self.api_key or os.environ.get("GEMINI_API_KEY")
             model = self.model_name or "gemini-2.0-flash"
             return ChatGoogleGenerativeAI(temperature=0.7, model=model, google_api_key=api_key)
         
@@ -78,6 +78,7 @@ class YouTubeContentGenerator:
         else:
             raise ValueError(f"Unsupported LLM provider: {self.llm_provider}. " 
                            f"Supported providers: openai, grok, gemini, claude, ollama")
+        print(api_key)
     
     def generate_youtube_script(self, topic: str, context: str = "", time_unit: str = "minutes") -> str:
         """
@@ -212,6 +213,7 @@ class YouTubeContentGenerator:
                     # print("result: ", resp)
                     success = True
                 except Exception as e:
+                    print(e)
                     print("RATE LIMITING CONDITION REACHED FOR RPM")
                     print("WAITING FOR 60 seconds!!!")
                     time.sleep(60)
