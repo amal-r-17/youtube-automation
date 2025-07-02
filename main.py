@@ -12,10 +12,14 @@ from audio_gen.audio_generator_gemini import generate_audio
 from video_gen.video_generator import create_video_from_images
 from video_gen.caption_generator import generate_captions
 from video_gen.avatar import add_avatar
+from video_gen.video_diffusion import diffuse_images
 from video_gen.audio_video_sync import fetch_audio_timings,calculate_media_timings
 from context_extract.Scrapper import ContentSummarizer
 from stock_media.stock_media_scrapper import scrape_stock_media
 from context_extract.topic_grounding import grounding_gemini
+from video_gen.youtube_uploader import video_upload
+from audio_gen.generate_bgm import add_bgm
+import asyncio
 
 def remove_enclosed_segments(text):
     return re.sub(r"\*\*\([^)]*\)\*\*", "", text)
@@ -55,6 +59,7 @@ def main():
     PIXARAY_API_KEY = os.getenv("PIXARAY_API_KEY")
     ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY")
     TOGETHER_AI_API_KEY = os.getenv("TOGETHER_AI_API_KEY")
+    STABILITY_AI_API_KEY = os.getenv("STABILITY_AI_API_KEY")
 
     SAVE_DIR = os.getenv("SAVE_DIR")
     os.makedirs(SAVE_DIR, exist_ok=True)
@@ -70,16 +75,20 @@ def main():
 
     # IMAGE GEN
     IMG_SIMILARITY_THRESHOLD = float(os.getenv("IMG_SIMILARITY_THRESHOLD", 0.7))
-
+    bgm_volume_percentage = float(os.getenv("BGM_VOLUME_PERCENTAGE", 20.0))
     # AUDIO 
     GENERATE_CAPTIONS = os.getenv("GENERATE_CAPTIONS", True)
     stock_media = os.getenv("INCLUDE_STOCK_MEDIA", True)
     GENERATE_SHORTS = os.getenv("GENERATE_SHORTS", True)
+    VIDEO_DIFFUSION = os.getenv("VIDEO_DIFFUSION", True)
     ADD_AVATAR = os.getenv("INCLUDE_AVATAR", True)
     AUDIO_PACE =  float(os.getenv("AUDIO_PACE", 1.1))
+    voice_keyword = os.getenv("VOICE_KEYWORD", False)
     TTS_MODEL = os.getenv("TTS_MODEL")
     IMG_MODEL = os.getenv("IMG_MODEL")
     CONTENT_SCRAPER_MODEL = os.getenv("CONTENT_SCRAPER_MODEL")
+    ENABLE_BGM = os.getenv("ENABLE_BGM")
+    UPLOAD_VIDEO = os.getenv("UPLOAD_VIDEO")
 
     # Instantiate the content creator
     creator = ContentCreator(
@@ -138,15 +147,6 @@ def main():
     AUDIO_DIR = os.path.join(VIDEO_SAVE_DIR, "audio")
     os.makedirs(AUDIO_DIR, exist_ok=True)
 
-    # Print the result
-    # print("\n=== Generated Script ===")
-    # print(result["script"])
-    #
-    # print("\n=== Generated Image Prompts ===")
-    # for section_num, prompt in result["image-prompts"].items():
-    #     print(f"Section {section_num}:")
-    #     print(prompt)
-
     # Save to file
     filename = os.path.join(VIDEO_SAVE_DIR, f"youtube_content_{topic.replace(' ', '_')[:20]}.json")
     file_path = creator.save_to_json(result, filename)
@@ -177,23 +177,23 @@ def main():
     else:
         print("[INFO] SCRAPING STOCK MEDIA - DISABLED")
 
-    print("[INFO] TTS Started",TTS_MODEL)
+    print("[INFO] TTS Started",TTS_MODEL,end=' ')
     start = time.time()
     # Processing the script to remove the text and video cues
     processed_script = remove_enclosed_segments(result["script"])
     processed_script = processed_script.replace('<>', '')
     # Audio gen
     if TTS_MODEL == 'GEMINI':
-        voice = 'Sulafat'
+        print('VOICE KEYWORD:', voice_keyword,end=' ')
         try:
-            save_file_path = generate_audio(script=processed_script, output_dir=AUDIO_DIR, api_key=GOOGLE_API_KEY,voice=voice)
+            save_file_path = generate_audio(script=processed_script, output_dir=AUDIO_DIR, api_key=GOOGLE_API_KEY,voice_keyword=voice_keyword)
         except:
             print('[ERROR] Failed to generate audio file - Trying AGAIN')
-            save_file_path = generate_audio(script=processed_script, output_dir=AUDIO_DIR, api_key=GOOGLE_API_KEY,voice=voice)
+            save_file_path = generate_audio(script=processed_script, output_dir=AUDIO_DIR, api_key=GOOGLE_API_KEY,voice_keyword=voice_keyword)
     else:
         save_file_path = text_to_speech_file(text=processed_script, save_dir=AUDIO_DIR, ELEVENLABS_API_KEY=ELEVENLABS_API_KEY, AUDIO_SPEED=AUDIO_PACE) #eleven labs
     time_taken = calc_time(start)
-    print(f"[INFO] TTS Completed in {time_taken}, saved to {save_file_path}")
+    print(f"[INFO] TTS Completed in {time_taken}, saved to {save_file_path}\n")
 
     print("[INFO] CALCULATING SCENE and IMAGE TIMINGS",end = ' ')
     start = time.time()
@@ -204,10 +204,25 @@ def main():
     time_taken = calc_time(start)
     print(' - Completed in', time_taken)
 
+    if ENABLE_BGM == 'TRUE':
+        print("[INFO] BGM Generation Started")
+        start = time.time()
+        save_file_path = asyncio.run(add_bgm(API_KEY=GOOGLE_API_KEY,audio_file=save_file_path,
+                                             transcript_file=scene_timing_file,target_volume_percentage=bgm_volume_percentage))
+        time_taken = calc_time(start)
+        print("[INFO] BGM Generation Completed in ", time_taken)
+
+    if VIDEO_DIFFUSION == 'TRUE':
+        print("[INFO] IMAGE DIFFUSION STARTED")
+        start = time.time()
+        VIDEO_FOLDER = diffuse_images(IMAGE_FOLDER=IMAGE_DIR,api_key=STABILITY_AI_API_KEY)
+        time_taken = calc_time(start)
+        print("[INFO] IMAGE DIFFUSION COMPLETED IN", time_taken, "saved to ", VIDEO_FOLDER)
+
     print("[INFO] VIDEO MERGING STARTED")
     start = time.time()
     video_path = os.path.join(VIDEO_SAVE_DIR, "merged_video.mp4")
-    create_video_from_images(img_timing_file,IMAGE_DIR, save_file_path, video_path, TARGET_SIZE)
+    create_video_from_images(img_timing_file,IMAGE_DIR, save_file_path, video_path, TARGET_SIZE,VIDEO_DIFFUSION)
     time_taken = calc_time(start)
     print(f"[INFO] VIDEO MERGING COMPLETED IN {time_taken}, saved to:",video_path)
 
@@ -292,6 +307,19 @@ def main():
         print("[INFO] SHORTS GENERATED IN", time_taken)
     else:
         print("[INFO] GENERATING SHORTS - DISABLED")
+
+    if UPLOAD_VIDEO == 'TRUE':
+        print("[INFO] UPLOADING VIDEO")
+        start_time = time.time()
+        script_json = json.load(open(file_path))
+        title = script_json['topic']
+        description = script_json['meta_data']['full_description']
+        tags = ['planet','die','earth']
+        video_upload(video_path, title, description, tags)
+        time_taken = calc_time(start_time)
+        print("[INFO] VIDEO UPLOADED IN", time_taken)
+    else:
+        print("[INFO] UPLOADING VIDEO - DISABLED")
     return result
 
 if __name__ == "__main__":

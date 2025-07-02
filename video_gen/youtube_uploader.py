@@ -6,17 +6,11 @@ import googleapiclient.errors
 import googleapiclient.http
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
-TOKEN_FILE = 'token.json'
 
 
 def authenticate_youtube():
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
-
-    if os.path.exists(TOKEN_FILE):
-        os.remove(TOKEN_FILE)
-
-    # Load client secrets file, put the path of your file
-    client_secrets_file = "client_secret.json"
+    client_secrets_file = "/Users/rithikalias/personal/youtube-automation/client.json"
 
     flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
         client_secrets_file, SCOPES)
@@ -28,39 +22,39 @@ def authenticate_youtube():
     return youtube
 
 
-def upload_video(youtube):
+def upload_video(youtube,video_path,title,description,tags):
     request_body = {
         "snippet": {
             "categoryId": "22",
-            "title": "Uploaded from Python",
-            "description": "This is the most awsome description ever",
-            "tags": ["test", "python", "api"]
+            "title": title,
+            "description": description,
+            "tags": tags
         },
         "status": {
-            "privacyStatus": "private"
+            "privacyStatus": "public"
         }
     }
 
     # put the path of the video that you want to upload
-    media_file = "data/Alien_Invasion:_The_Bureaucracy!/final_video.mp4"
-
     request = youtube.videos().insert(
         part="snippet,status",
         body=request_body,
-        media_body=googleapiclient.http.MediaFileUpload(media_file, chunksize=-1, resumable=True)
+        media_body=googleapiclient.http.MediaFileUpload(video_path, chunksize=-1, resumable=True)
     )
 
     response = None
 
     while response is None:
         status, response = request.next_chunk()
+        print(response, status)
         if status:
             print(f"Upload {int(status.progress() * 100)}%")
 
         print(f"Video uploaded with ID: {response['id']}")
 
 
-if __name__ == "__main__":
+def video_upload(video_path,title,description,tags):
     youtube = authenticate_youtube()
-    upload_video(youtube)
+    upload_video(youtube,video_path,title,description,tags)
+
 

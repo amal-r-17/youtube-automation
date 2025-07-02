@@ -11,6 +11,7 @@ import numpy as np
 from numpy.linalg import norm
 import json
 from random import randint
+from tqdm import tqdm
 import threading, time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 

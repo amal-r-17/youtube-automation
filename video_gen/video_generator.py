@@ -74,22 +74,12 @@ def create_zoom_effect(image_array, duration, zoom_type='in', zoom_factor=1.3):
     
     return VideoClip(make_frame, duration=duration)
 
-def create_video_from_images(img_timing_file,images_folder, audio_file, output_file, target_size=(1920, 1080)):
-    """
-    Create video from images with transitions, zoom effects, and audio
-    """
-    ### TODO: NEED TO FIND A BETTER WAY
-    # Get all PNG files
+def create_video_from_images(img_timing_file,images_folder, audio_file, output_file, target_size=(1920, 1080),
+                             video_diffusion='False'):
+
     imges_len = len(os.listdir(images_folder))
     image_timings = json.load(open(img_timing_file))
-    # image_files = [f"{i+1}.png" for i in range(imges_len)]
-    # image_files = [img_file for img_file in image_files if os.path.exists(os.path.join(images_folder,img_file))]
-    # image_files = [f for f in os.listdir(images_folder) if f.lower().endswith('.png')]
-    # image_files.sort()  # Sort alphabetically
-    
-    # if not image_files:
-    #     raise ValueError(f"No PNG files found in the specified folder, {images_folder}")
-    
+
     print(f"Found {len(image_timings)} images")
     
     # Load audio to get duration
@@ -98,12 +88,7 @@ def create_video_from_images(img_timing_file,images_folder, audio_file, output_f
     
     # Calculate timing
     transition_duration = 0.5  # 0.5 seconds for transitions
-    # image_display_time = (total_duration - (len(image_files) - 1) * transition_duration) / len(image_files)
-    
-    # if image_display_time < 1.0:
-    #     print("Warning: Images will be displayed very briefly due to short audio duration")
-    
-    # print(f"Each image will display for {image_display_time:.2f} seconds")
+
     print(f"Transition duration: {transition_duration} seconds")
     
     # Create video clips
@@ -111,45 +96,40 @@ def create_video_from_images(img_timing_file,images_folder, audio_file, output_f
     zoom_effects = ['in', 'out', 'none']  # Different effects to cycle through
     for i, image_file in enumerate(image_timings):
         image_path = image_file['image_path']
+        img_filename = image_path.split("/")[-1][:-4]
         image_display_time = image_file['image_duration'] - transition_duration
-        # if i == 1:
-        #     image_display_time = image_file['image_duration'] - transition_duration
-        print(f"Processing {image_path}...")
-        
-        # Resize image
-        resized_image = resize_image_to_target(image_path, target_size)
-        
-        # Choose zoom effect (cycle through different effects)
-        zoom_type = zoom_effects[i % len(zoom_effects)]
-        
-        if zoom_type == 'none':
-            # Static image
-            clip = ImageClip(resized_image, duration=image_display_time)
+        diffused_video_path = '/'.join(image_path.split("/")[:-2]) + f'/videos/processed_{img_filename}.mp4'
+        if video_diffusion == 'False' or os.path.exists(diffused_video_path) == False:
+            resized_image = resize_image_to_target(image_path, target_size)
+
+            # Choose zoom effect (cycle through different effects)
+            zoom_type = zoom_effects[i % len(zoom_effects)]
+
+            if zoom_type == 'none':
+                # Static image
+                clip = ImageClip(resized_image, duration=image_display_time)
+            else:
+                # Apply zoom effect
+                clip = create_zoom_effect(resized_image, image_display_time, zoom_type)
+                # Add transition (except for the last image)
+            clips.append(clip)
+            if i < len(image_timings) - 1:
+                # Create crossfade transition
+                next_image_path = image_timings[i + 1]['image_path']
+                next_resized_image = resize_image_to_target(next_image_path, target_size)
+
+                # Create a short clip for transition
+                transition_clip = ImageClip(next_resized_image, duration=transition_duration)
+
+                # Apply crossfade effect
+                clips[-1] = clips[-1].crossfadeout(transition_duration / 2)
+                transition_clip = transition_clip.crossfadein(transition_duration / 2)
+
+                clips.append(transition_clip)
         else:
-            # Apply zoom effect
-            clip = create_zoom_effect(resized_image, image_display_time, zoom_type)
-        
-        clips.append(clip)
-        
-        # Add transition (except for the last image)
-        if i < len(image_timings) - 1:
-            # Create crossfade transition
-            next_image_path = image_timings[i + 1]['image_path']
-            next_resized_image = resize_image_to_target(next_image_path, target_size)
-            
-            # Create a short clip for transition
-            transition_clip = ImageClip(next_resized_image, duration=transition_duration)
-            
-            # Apply crossfade effect
-            clips[-1] = clips[-1].crossfadeout(transition_duration/2)
-            transition_clip = transition_clip.crossfadein(transition_duration/2)
-            
-            clips.append(transition_clip)
-    
-    for i,clip in enumerate(clips):
-        print(i,clip.duration)
-    # Concatenate all clips
-    print("Concatenating clips...")
+            clip = VideoFileClip(diffused_video_path)
+            clips.append(clip)
+
     final_video = concatenate_videoclips(clips, method="compose")
     
     # Trim video to match audio duration exactly
@@ -157,9 +137,7 @@ def create_video_from_images(img_timing_file,images_folder, audio_file, output_f
     
     # Add audio
     final_video = final_video.set_audio(audio_clip)
-    
-    # Write video file
-    print(f"Writing video to {output_file}...")
+
     final_video.write_videofile(
         output_file,
         fps=24,
