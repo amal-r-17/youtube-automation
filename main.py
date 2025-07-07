@@ -281,11 +281,11 @@ def main():
         if TTS_MODEL == 'GEMINI':
             try:
                 save_file_path = generate_audio(script=processed_script, output_dir=AUDIO_DIR, api_key=GOOGLE_API_KEY,
-                                                voice='Umbriel')
+                                                voice_keyword='male')
             except:
                 print('[ERROR] Failed to generate audio file - Trying AGAIN')
                 save_file_path = generate_audio(script=processed_script, output_dir=AUDIO_DIR, api_key=GOOGLE_API_KEY,
-                                                voice='Umbriel')
+                                                voice_keyword='male')
         else:
             save_file_path = text_to_speech_file(text=processed_script, save_dir=AUDIO_DIR,
                                                  ELEVENLABS_API_KEY=ELEVENLABS_API_KEY,
